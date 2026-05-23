@@ -26,6 +26,8 @@ Status options:
 - The user relationship to the repo is clear.
 - Generated images are marked as conceptual unless they are actual repo assets.
 - No fake screenshots, fake metrics, fake benchmark charts, or fake official assets are used.
+- Every image referenced by `posting_pack.md` exists in `images_manifest.json`.
+- Every generated image file is under `images/` with `sha256`, `mime_type`, alt text, disclosure, and review status.
 
 ## Claim Review Table
 

@@ -8,11 +8,11 @@ allowed-tools: Bash(python:*), Bash(git:*), Bash(gh:*), Bash(rg:*), Bash(jq:*), 
 
 Use the `github-repo-to-x-threads` skill from this plugin/project. If the skill body is not already loaded, read:
 
-`$CLAUDE_PLUGIN_ROOT/.claude/skills/github-repo-to-x-threads/SKILL.md`
+`$CLAUDE_PLUGIN_ROOT/skills/github-repo-to-x-threads/SKILL.md`
 
 If `$CLAUDE_PLUGIN_ROOT` is not available, read:
 
-`.claude/skills/github-repo-to-x-threads/SKILL.md`
+`skills/github-repo-to-x-threads/SKILL.md`
 
 ## Task
 
@@ -21,13 +21,13 @@ Analyze the repo sources provided in `$ARGUMENTS`, create a governed local run w
 For multi-repo or durable work, run:
 
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/.claude/skills/github-repo-to-x-threads/scripts/run_repo_to_x_pack.py" $ARGUMENTS
+python -B "$CLAUDE_PLUGIN_ROOT/skills/github-repo-to-x-threads/scripts/run_repo_to_x_pack.py" $ARGUMENTS
 ```
 
-If using the project skill path instead:
+If using the repository skill path instead:
 
 ```bash
-python ".claude/skills/github-repo-to-x-threads/scripts/run_repo_to_x_pack.py" $ARGUMENTS
+python -B "skills/github-repo-to-x-threads/scripts/run_repo_to_x_pack.py" $ARGUMENTS
 ```
 
 Then read the generated `SUMMARY.md`, each `repo_context.json`, `claims_ledger.json`, `cross_check_review.md`, `posting_pack.md`, and `images_manifest.json`.

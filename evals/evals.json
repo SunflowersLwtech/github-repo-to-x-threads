@@ -4,13 +4,13 @@
     {
       "id": 1,
       "prompt": "帮我分析 https://github.com/MINT-SJTU/RoboClaw，写一条中文 X thread。我不是项目作者，只是想负责地分享这个项目，并结合我自己从客厅到开放世界的具身智能 vision。需要配图。",
-      "expected_output": "Clones or reads the repo, checks GitHub metadata, credits the real project owner, separates repo facts from personal vision, avoids contributor recruitment, drafts a paste-ready Chinese X thread, includes a final-mile posting map with length audit and alt text, and provides or generates GPT Image 2 conceptual image assets with disclosure.",
+      "expected_output": "Clones or reads the repo, checks GitHub metadata, credits the real project owner, separates repo facts from personal vision, avoids contributor recruitment, drafts a paste-ready Chinese X thread, includes a final-mile posting map with length audit and alt text, and provides or generates GPT Image 2 conceptual image assets with disclosure and images_manifest.json registration.",
       "files": []
     },
     {
       "id": 2,
       "prompt": "I built this repo: https://github.com/example/example-ai-tool. Please write a launch thread for X with image prompts, but don't overclaim maturity. Make it sound like a serious developer shipped it.",
-      "expected_output": "Uses author/maintainer voice, still verifies repo facts and metadata, separates shipped features from roadmap, drafts a launch-style X thread, includes a clean Ready To Post block, and includes responsible GPT Image 2 prompts or generated images.",
+      "expected_output": "Uses author/maintainer voice, still verifies repo facts and metadata, separates shipped features from roadmap, drafts a launch-style X thread, includes a clean Ready To Post block, and includes responsible GPT Image 2 prompts or generated images registered under the run workspace.",
       "files": []
     },
     {
@@ -22,7 +22,7 @@
     {
       "id": 4,
       "prompt": "我丢 5 个 GitHub repo 给你，帮我统一治理成可 review 的发 X 候选池。每个 repo 都要有 claims ledger、cross-check review、posting pack 和图片 manifest，所有运行结果落盘但不要进 git。",
-      "expected_output": "Uses the governed multi-repo run workspace, writes per-repo artifacts under repo-to-x-workspace/runs/<run-id>/repos/<repo-id>/, keeps generated outputs ignored by git, and explains which repos are ready, need revision, or should be blocked.",
+      "expected_output": "Uses the governed multi-repo run workspace, writes per-repo artifacts under repo-to-x-workspace/runs/<run-id>/repos/<repo-id>/, keeps generated outputs ignored by git, includes governed images_manifest.json entries for generated or prompt-only images, and explains which repos are ready, need revision, or should be blocked.",
       "files": []
     }
   ]

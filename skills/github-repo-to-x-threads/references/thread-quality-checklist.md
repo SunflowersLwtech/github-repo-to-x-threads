@@ -41,6 +41,8 @@ Use this when the repo facts are collected but before final output.
 - No fake UI screenshots, fake robot evidence, fake benchmark charts, or fake GitHub metrics.
 - Alt text is included.
 - Official assets are used only when actually present and attributed.
+- Every image referenced in the posting map has a matching `images_manifest.json` entry.
+- Generated image files live under `images/` with `sha256` and `mime_type`.
 
 ## GPT Image 2 Quality
 
@@ -48,3 +50,4 @@ Use this when the repo facts are collected but before final output.
 - Prompts specify aspect ratio, composition, and the post where the image will be used.
 - Prompts explicitly avoid fake screenshots, fake GitHub metrics, and fake benchmark tables when relevant.
 - The first image supports the hook; later images explain architecture, workflow, or personal vision.
+- If the image tool cannot expose a file path, the manifest records a `prompt_only` entry and the final answer says that actual image generation could not be governed locally.

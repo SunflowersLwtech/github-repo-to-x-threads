@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
+SKILL_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from collect_repo_context import (  # noqa: E402
@@ -114,22 +114,47 @@ def make_images_manifest(owner_repo: str | None) -> dict[str, Any]:
         "schema_version": 1,
         "owner_repo": owner_repo,
         "created_at": utc_now(),
+        "updated_at": utc_now(),
+        "image_policy": {
+            "default_model": "gpt-image-2",
+            "default_source_type": "gpt_image_2_generated",
+            "allowed_statuses": ["planned", "prompt_only", "generated", "approved", "rejected"],
+            "allowed_source_types": [
+                "gpt_image_2_generated",
+                "official_repo_asset",
+                "user_asset",
+                "prompt_only",
+            ],
+            "storage": "Store generated files under images/ and register them with scripts/register_image_asset.py.",
+            "review_gate": "Every image used in posting_pack.md needs path or prompt_only status, alt_text, disclosure, and review_status.",
+        },
         "images": [
             {
                 "id": "image-1",
                 "post": "1/N",
                 "purpose": "hook visual",
                 "status": "planned",
+                "source_type": "gpt_image_2_generated",
+                "model": "gpt-image-2",
                 "path": "",
+                "sha256": "",
+                "mime_type": "",
                 "prompt": "",
+                "prompt_path": "",
                 "alt_text": "",
                 "disclosure": "Generated conceptual visual, not an official project screenshot.",
+                "review_status": "needs_review",
+                "review_notes": "",
+                "created_at": utc_now(),
+                "updated_at": utc_now(),
             }
         ],
         "rules": [
             "Generated visuals must be labeled as conceptual.",
             "Do not create fake screenshots, fake GitHub metrics, or fake benchmark charts.",
             "Use official repo assets only when actually present and attributed.",
+            "Do not reference an image in posting_pack.md unless it exists in images_manifest.json.",
+            "Actual image files must be copied into images/ and include sha256.",
         ],
     }
 
@@ -157,11 +182,11 @@ def collect_one(source: str, repo_root: Path, refresh: bool) -> dict[str, Any]:
     write_json(repo_root / "claims_ledger.json", make_claims_ledger(source, owner_repo, context))
     write_json(repo_root / "images_manifest.json", make_images_manifest(owner_repo))
     (repo_root / "cross_check_review.md").write_text(
-        template_text(PROJECT_ROOT / "references" / "cross-check-review-template.md"),
+        template_text(SKILL_ROOT / "references" / "cross-check-review-template.md"),
         encoding="utf-8",
     )
     (repo_root / "posting_pack.md").write_text(
-        template_text(PROJECT_ROOT / "references" / "posting-pack-template.md"),
+        template_text(SKILL_ROOT / "references" / "posting-pack-template.md"),
         encoding="utf-8",
     )
     (repo_root / "images").mkdir(exist_ok=True)
@@ -217,7 +242,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("sources", nargs="*", help="GitHub URLs, owner/repo strings, or local repo paths")
     parser.add_argument("--source-file", help="Text file containing one source per line")
-    parser.add_argument("--out-root", default=str(PROJECT_ROOT / "repo-to-x-workspace" / "runs"))
+    parser.add_argument("--out-root", default=str(Path.cwd() / "repo-to-x-workspace" / "runs"))
     parser.add_argument("--run-id", default=default_run_id())
     parser.add_argument("--refresh", action="store_true", help="Refresh cloned remote repos")
     args = parser.parse_args()
@@ -226,7 +251,7 @@ def main() -> int:
     if not sources:
         parser.error("provide at least one repo source or --source-file")
 
-    env_info = load_dotenv([PROJECT_ROOT / ".env", Path.cwd() / ".env"])
+    env_info = load_dotenv([SKILL_ROOT / ".env", Path.cwd() / ".env"])
     out_root = Path(args.out_root).expanduser().resolve()
     run_dir = out_root / safe_slug(args.run_id)
     repos_dir = run_dir / "repos"
@@ -239,7 +264,7 @@ def main() -> int:
         "run_dir": str(run_dir),
         "sources": sources,
         "env": env_info,
-        "workspace_contract": "references/run-workspace-contract.md",
+        "workspace_contract": str(SKILL_ROOT / "references" / "run-workspace-contract.md"),
         "git_hygiene": {
             "ignored_workspace": "repo-to-x-workspace/",
             "do_not_commit": [

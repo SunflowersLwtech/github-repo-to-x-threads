@@ -1,52 +1,100 @@
 # github-repo-to-x-threads
 
-Codex/Claude-style skill for turning a GitHub repository into responsible X threads.
+Agent Skills plugin for turning GitHub repositories into responsible X/Twitter thread posting packs.
 
-It is designed for the workflow where the user drops a GitHub repo into a session and expects the agent to:
+The canonical skill is agent-neutral:
+
+```text
+skills/github-repo-to-x-threads/
+  SKILL.md
+  scripts/
+  references/
+```
+
+Adapter metadata is thin and separate:
+
+```text
+.codex-plugin/plugin.json      # Codex plugin manifest
+.claude-plugin/plugin.json     # Claude Code plugin manifest
+commands/                      # Claude plugin slash command fallback
+```
+
+Do not install this project by copying the whole repository into `.claude/skills`. The reusable skill lives under `skills/`; installers and plugin manifests adapt that folder for each agent surface.
+
+## Coding Agent One-Line Config
+
+Coding agents should treat `AGENTS.md` plus `skills/github-repo-to-x-threads/SKILL.md` as the source of truth, keep generated runs/images/env files out of git, and use `scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X` only to sync local install surfaces.
+
+## What It Does
+
+Given one or more GitHub repos, owner/repo strings, or local paths, the skill guides an agent to:
 
 1. clone or read the repo locally,
 2. cross-check repo files against live GitHub metadata,
-3. separate verified facts from inference and the user's personal vision,
-4. draft a paste-ready X thread with a final-mile posting map,
-5. prepare or generate conceptual GPT Image 2 / image-generation-style visuals with alt text and clear disclosure.
+3. separate verified facts, reasonable inference, and user vision,
+4. draft a paste-ready X thread with attribution and caveats,
+5. create a final-mile posting pack with image placement and alt text,
+6. govern GPT Image 2-style assets through a local image registry.
 
-## Install
+## Install For Local Use
 
-Copy this folder into your skills directory:
-
-```bash
-mkdir -p ~/.codex/skills/github-repo-to-x-threads
-cp -R . ~/.codex/skills/github-repo-to-x-threads
-```
-
-## Helper
-
-The bundled helper collects a first-pass repo context:
+The helper installs the canonical skill plus local adapters without committing generated outputs:
 
 ```bash
-python scripts/collect_repo_context.py https://github.com/owner/repo --out /tmp/repo-to-x-context --refresh
+scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X
 ```
 
-Outputs:
+It writes:
 
-- `/tmp/repo-to-x-context/repo_context.json`
-- `/tmp/repo-to-x-context/file_manifest.txt`
-- `/tmp/repo-to-x-context/repo/` for cloned remote repos
+```text
+/Volumes/T7/AI_Dev/X/
+  skills/github-repo-to-x-threads/      # canonical plugin skill
+  .codex-plugin/plugin.json             # Codex plugin manifest
+  .claude-plugin/plugin.json            # Claude plugin manifest
+  commands/github-repo-to-x-threads.md  # Claude plugin command
+  .agents/skills/github-repo-to-x-threads/  # Codex repo adapter
+  .claude/skills/github-repo-to-x-threads/  # Claude project adapter
+```
 
-The helper is only a starting point. The skill still instructs the agent to read key files before making public claims.
+It also installs user-level Codex skill copies to:
+
+```text
+~/.agents/skills/github-repo-to-x-threads/
+~/.codex/skills/github-repo-to-x-threads/   # compatibility fallback for current Codex app builds
+```
+
+## Manual Install
+
+Codex official user skill location:
+
+```bash
+mkdir -p ~/.agents/skills
+cp -R skills/github-repo-to-x-threads ~/.agents/skills/
+```
+
+Claude Code personal skill location:
+
+```bash
+mkdir -p ~/.claude/skills
+cp -R skills/github-repo-to-x-threads ~/.claude/skills/
+```
+
+For plugin distribution, use the repository root as the plugin folder. Codex reads `.codex-plugin/plugin.json`; Claude Code reads `.claude-plugin/plugin.json` and the root `skills/` directory.
 
 ## Governed Multi-Repo Runs
 
 Use the run-pack script when you want one governed workspace for one or more repos:
 
 ```bash
-python scripts/run_repo_to_x_pack.py https://github.com/owner/repo owner2/repo2 --refresh
+python -B skills/github-repo-to-x-threads/scripts/run_repo_to_x_pack.py \
+  https://github.com/owner/repo owner2/repo2 --refresh
 ```
 
 Or use a source list:
 
 ```bash
-python scripts/run_repo_to_x_pack.py --source-file repos.txt --refresh
+python -B skills/github-repo-to-x-threads/scripts/run_repo_to_x_pack.py \
+  --source-file repos.txt --refresh
 ```
 
 Outputs are written under:
@@ -68,23 +116,43 @@ Each repo gets:
 
 `repo-to-x-workspace/` is ignored by git. It is the local, accessible place for cloned repos, generated images, drafts, review notes, and final posting packs.
 
-## Output Bias
+## Image Governance
 
-The skill is tuned for practical publishing. A good run should end with:
+Generated image files must be copied into the repo run directory and registered:
 
-- a clean `Ready To Post` block,
-- image placement for each selected post,
-- alt text and disclosure text,
-- a rough length audit,
-- a short pre-flight checklist,
-- generated images when image generation is available and requested.
+```bash
+python -B skills/github-repo-to-x-threads/scripts/register_image_asset.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<repo-id> /path/to/generated.png \
+  --id image-1 \
+  --post 1/N \
+  --purpose "hook visual" \
+  --prompt "..." \
+  --alt-text "..." \
+  --disclosure "Generated conceptual visual, not an official project screenshot."
+```
+
+The registry writes `images_manifest.json` with:
+
+- stable image id,
+- post placement,
+- source type,
+- model,
+- governed local path,
+- `sha256`,
+- MIME type,
+- prompt,
+- alt text,
+- disclosure,
+- review status.
+
+If the generation tool cannot expose a file path, register a prompt-only entry with `--prompt-only` and do not claim an actual governed image file exists.
 
 ## Local Env
 
-Create `.env` from `.env.example` when you want live GitHub metadata through `gh`:
+Create a local `.env` when you want live GitHub metadata through `gh`:
 
 ```bash
-cp .env.example .env
+cp skills/github-repo-to-x-threads/.env.example .env
 ```
 
 Set one of:
@@ -99,54 +167,29 @@ Set one of:
 
 Tracked:
 
-- `SKILL.md`
+- `skills/github-repo-to-x-threads/`
+- `.codex-plugin/plugin.json`
+- `.claude-plugin/plugin.json`
+- `commands/`
+- root installer scripts
 - `README.md`
-- `scripts/`
-- `references/`
+- `AGENTS.md`
 - `evals/`
-- `.env.example`
 
 Ignored:
 
 - `.env`
+- `.claude/` and `.agents/` generated local adapters
 - `repo-to-x-workspace/`
-- generated run outputs
 - cloned third-party repos
 - generated images
 - repo-specific claims ledgers and posting packs
+- `.DS_Store`, `._*`, `__pycache__`
 
-## Clean External-Disk Sync
-
-For a loadable Claude Code project/plugin bundle on an external disk:
-
-```bash
-scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X
-```
-
-Expected layout:
-
-```text
-/Volumes/T7/AI_Dev/X/
-  .claude/
-    commands/
-      github-repo-to-x-threads.md
-    skills/
-      github-repo-to-x-threads/
-        SKILL.md
-        scripts/
-        references/
-  .claude-plugin/
-    plugin.json
-  commands/
-    github-repo-to-x-threads.md
-```
-
-Claude Code project-level discovery uses `.claude/skills/<skill-name>/SKILL.md` for `/skill-name`. The legacy project command file `.claude/commands/<skill-name>.md` is included as a fallback. Plugin-style discovery uses `.claude-plugin/plugin.json` plus `commands/<skill-name>.md`; that command points back to `.claude/skills`.
-
-For a plain folder backup, use:
+Before publishing changes:
 
 ```bash
-scripts/sync_clean_external.sh . /Volumes/T7/AI_Dev/X/backups/github-repo-to-x-threads
+git status --short --ignored
+git diff --check
+rg -n --hidden --glob '!.env' --glob '!.git/**' '(g[h]p_|g[h]o_|github_[p]at_|BEGIN [A-Z ]{0,30}PRIVATE KEY)' . || true
 ```
-
-Both helpers set `COPYFILE_DISABLE=1`, exclude `.DS_Store` and `._*`, then clean any AppleDouble files produced during the sync.

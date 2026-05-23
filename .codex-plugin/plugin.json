@@ -13,7 +13,5 @@
     "skills",
     "image-generation"
   ],
-  "commands": [
-    "./commands/github-repo-to-x-threads.md"
-  ]
+  "skills": "./skills/"
 }

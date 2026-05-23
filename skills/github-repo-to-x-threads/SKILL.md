@@ -33,6 +33,8 @@ Infer these from the prompt when possible. Ask only if the missing answer would 
 
 ## Core Workflow
 
+In command examples, `<skill-dir>` means the directory that contains this `SKILL.md`. Resolve relative paths from this skill directory before running bundled scripts.
+
 ### 1. Collect Repo Evidence
 
 Do not write the thread from memory or from the repo name alone.
@@ -40,7 +42,7 @@ Do not write the thread from memory or from the repo name alone.
 For multi-repo or durable work, create a governed run workspace first:
 
 ```bash
-python scripts/run_repo_to_x_pack.py <repo-or-path> [more repos...] --refresh
+python -B <skill-dir>/scripts/run_repo_to_x_pack.py <repo-or-path> [more repos...] --refresh
 ```
 
 This writes all generated artifacts under `repo-to-x-workspace/runs/<run-id>/`, which is ignored by git. Use this as the user's accessible source of truth for the run.
@@ -77,7 +79,7 @@ If the user gives a local repo path:
 Prefer the bundled helper when useful:
 
 ```bash
-python scripts/collect_repo_context.py <github-url-or-owner/repo-or-local-path> --out /tmp/repo-to-x-context
+python -B <skill-dir>/scripts/collect_repo_context.py <github-url-or-owner/repo-or-local-path> --out /tmp/repo-to-x-context
 ```
 
 Then inspect the generated `repo_context.json` and `file_manifest.txt`.
@@ -258,7 +260,38 @@ For each image, output:
 
 If image generation is available and the user requested actual images, generate 1-3 images. Do not stop at prompts. If image generation is not available, provide ready-to-run prompts and make that limitation explicit.
 
-Generated images should be stored under the repo run directory's `images/` folder and recorded in `images_manifest.json` when a run workspace exists.
+Generated images must be stored under the repo run directory's `images/` folder and recorded in `images_manifest.json` when a run workspace exists. Do not leave generated images only in chat, Downloads, a hidden app cache, or a random temp folder when the user asked for a governed posting pack.
+
+After each generated image file exists locally, register it:
+
+```bash
+python -B <skill-dir>/scripts/register_image_asset.py <repo-run-dir> /path/to/generated.png \
+  --id image-1 \
+  --post 1/N \
+  --purpose "hook visual" \
+  --prompt "..." \
+  --alt-text "..." \
+  --disclosure "Generated conceptual visual, not an official project screenshot."
+```
+
+If the image generation tool cannot expose a local file path, register a prompt-only asset instead and say so:
+
+```bash
+python -B <skill-dir>/scripts/register_image_asset.py <repo-run-dir> \
+  --prompt-only \
+  --id image-1 \
+  --post 1/N \
+  --purpose "hook visual" \
+  --prompt "..." \
+  --alt-text "..."
+```
+
+Before saying the pack is ready, check `images_manifest.json`:
+
+- every image referenced by `posting_pack.md` has an entry,
+- actual files have `path`, `sha256`, and `mime_type`,
+- every entry has `alt_text` and `disclosure`,
+- generated/conceptual images have `review_status` set to `approved` or are clearly marked as needing review.
 
 Default Image 2 pack:
 

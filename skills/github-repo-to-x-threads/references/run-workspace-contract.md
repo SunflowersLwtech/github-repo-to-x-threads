@@ -39,3 +39,28 @@ repo-to-x-workspace/
 - Draft posting packs.
 - Claims ledgers generated from specific repos.
 - Cross-check review notes generated for a specific run.
+
+## Image Asset Contract
+
+Generated or sourced images used for X posting belong under each repo run directory:
+
+```text
+repos/<repo-id>/
+  images_manifest.json
+  images/
+    image-1.png
+```
+
+Use `scripts/register_image_asset.py` to copy image files into `images/` and update `images_manifest.json`. A publishable image entry needs:
+
+- stable `id`,
+- `post` placement,
+- `purpose`,
+- `source_type`,
+- `status`,
+- `path` for real files or `prompt_only` status when no file path is available,
+- `sha256` and `mime_type` for real files,
+- `prompt`,
+- `alt_text`,
+- `disclosure`,
+- `review_status`.
