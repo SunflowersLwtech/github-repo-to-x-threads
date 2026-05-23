@@ -4,3 +4,6 @@
 __pycache__/
 *.py[cod]
 .DS_Store
+repo-to-x-workspace/
+repo-to-x-output/
+repo-to-x-runs/

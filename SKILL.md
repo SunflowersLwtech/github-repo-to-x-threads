@@ -17,12 +17,13 @@ Use this skill when the user asks things like:
 - "给这个项目做一组推文和配图"
 - "帮我把 repo + 我的 vision 组织成 thread"
 - "这个项目不是我的，只是分享，别写成官方口吻"
+- "一次处理多个 repo，统一落盘和 review"
 
 ## Inputs To Resolve
 
 Infer these from the prompt when possible. Ask only if the missing answer would cause a misleading post.
 
-- **Repo source**: GitHub URL, `owner/repo`, or local path.
+- **Repo source**: one or more GitHub URLs, `owner/repo` strings, local paths, or a source-list file.
 - **User relationship to the repo**: default to `independent sharer` unless the user clearly says they are the author, maintainer, contributor, or company/team member.
 - **Posting language**: match the user's language; for Chinese prompts, write Chinese by default with technical English terms where natural.
 - **User angle**: optional personal vision, use case, comparison, build plan, demo plan, or critique.
@@ -35,6 +36,31 @@ Infer these from the prompt when possible. Ask only if the missing answer would 
 ### 1. Collect Repo Evidence
 
 Do not write the thread from memory or from the repo name alone.
+
+For multi-repo or durable work, create a governed run workspace first:
+
+```bash
+python scripts/run_repo_to_x_pack.py <repo-or-path> [more repos...] --refresh
+```
+
+This writes all generated artifacts under `repo-to-x-workspace/runs/<run-id>/`, which is ignored by git. Use this as the user's accessible source of truth for the run.
+
+Run workspace layout:
+
+```text
+repo-to-x-workspace/runs/<run-id>/
+  run_manifest.json
+  SUMMARY.md
+  repos/<repo-id>/
+    repo_context.json
+    file_manifest.txt
+    claims_ledger.json
+    cross_check_review.md
+    posting_pack.md
+    images_manifest.json
+    images/
+    repo/
+```
 
 If the user gives a remote GitHub repo:
 
@@ -66,6 +92,8 @@ Minimum evidence to collect:
 
 If a metadata source fails, state that it was unavailable. Do not invent stars, maintainers, releases, affiliations, benchmarks, or roadmap items.
 
+For one-off single repo work, the lighter helper is acceptable. For anything involving multiple repos, comparison, repeatability, review, generated images, or final posting packs, use `run_repo_to_x_pack.py`.
+
 ### 2. Cross-Check Claims
 
 Create a short internal claim ledger before drafting. You do not have to show every detail, but the final answer should reflect this separation:
@@ -81,6 +109,15 @@ Examples:
 - Unsafe unless proven: "This is the most complete open-source robotics agent framework."
 - Safe with boundary: "My personal read is that this could fit a living-room robotics workflow."
 - Unsafe: "The RoboClaw team plans to target living-room deployment" unless the repo says so.
+
+When using the governed workspace, fill or update `claims_ledger.json` in the repo directory. Every public factual claim in `posting_pack.md` should map to one of:
+
+- local file path,
+- GitHub metadata field from `repo_context.json`,
+- reasonable inference with evidence,
+- user-provided personal vision.
+
+Claims without evidence should be moved to `unknown_or_unsafe` and removed or softened before posting.
 
 ### 3. Preserve Ownership Boundaries
 
@@ -163,6 +200,8 @@ Include:
 
 Keep this section practical. Avoid long explanations after the user has a paste-ready draft.
 
+When using a run workspace, write the final copy into `posting_pack.md` and keep generated image paths in `images_manifest.json`. Do not leave the final usable output only in chat.
+
 Suggested final-mile template:
 
 ````markdown
@@ -218,6 +257,8 @@ For each image, output:
 - Disclosure line: e.g. "Generated conceptual visual, not an official project screenshot."
 
 If image generation is available and the user requested actual images, generate 1-3 images. Do not stop at prompts. If image generation is not available, provide ready-to-run prompts and make that limitation explicit.
+
+Generated images should be stored under the repo run directory's `images/` folder and recorded in `images_manifest.json` when a run workspace exists.
 
 Default Image 2 pack:
 
@@ -276,6 +317,37 @@ Use this format unless the user asks otherwise:
 ````
 
 If the answer is for immediate posting, the `Ready To Post` block is the primary artifact. Keep surrounding analysis brief enough that the user can quickly find the copyable thread.
+
+### 9. Cross-Check Review Gate
+
+Before presenting a final posting pack as ready, run the review gate:
+
+1. Compare `posting_pack.md` against `claims_ledger.json`.
+2. Mark each factual claim as sourced, needs revision, or remove.
+3. Update `cross_check_review.md` with `pass`, `revise`, or `block`.
+4. If status is `revise` or `block`, do not present the pack as ready to post; present the required fixes first.
+
+The review gate is required for multi-repo runs and strongly preferred for single-repo runs.
+
+### 10. Git Hygiene
+
+Keep generated artifacts out of git:
+
+- `.env`
+- `repo-to-x-workspace/`
+- cloned repos
+- generated images
+- repo-specific claims ledgers
+- repo-specific posting packs
+- repo-specific cross-check reviews
+
+Before committing or publishing the skill repo, run:
+
+```bash
+git status --short --ignored
+git diff --cached --check
+rg -n --hidden --glob '!.env' --glob '!.git/**' '(g[h]p_|g[h]o_|github_[p]at_|BEGIN [A-Z ]{0,30}PRIVATE KEY)' . || true
+```
 
 ## Quality Bar
 

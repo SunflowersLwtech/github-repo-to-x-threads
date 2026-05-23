@@ -18,6 +18,12 @@
       "prompt": "这个本地目录 /tmp/some-open-source-repo 我想发 X 推荐一下。只要分析项目本身，不要加我的个人 vision。输出要能直接复制发。",
       "expected_output": "Reads the local repo, fetches origin metadata if available, produces a concise independent recommendation thread, includes evidence/caveats, avoids unsupported social metrics if unavailable, and gives a copy-paste ready final posting pack.",
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "我丢 5 个 GitHub repo 给你，帮我统一治理成可 review 的发 X 候选池。每个 repo 都要有 claims ledger、cross-check review、posting pack 和图片 manifest，所有运行结果落盘但不要进 git。",
+      "expected_output": "Uses the governed multi-repo run workspace, writes per-repo artifacts under repo-to-x-workspace/runs/<run-id>/repos/<repo-id>/, keeps generated outputs ignored by git, and explains which repos are ready, need revision, or should be blocked.",
+      "files": []
     }
   ]
 }

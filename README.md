@@ -35,6 +35,39 @@ Outputs:
 
 The helper is only a starting point. The skill still instructs the agent to read key files before making public claims.
 
+## Governed Multi-Repo Runs
+
+Use the run-pack script when you want one governed workspace for one or more repos:
+
+```bash
+python scripts/run_repo_to_x_pack.py https://github.com/owner/repo owner2/repo2 --refresh
+```
+
+Or use a source list:
+
+```bash
+python scripts/run_repo_to_x_pack.py --source-file repos.txt --refresh
+```
+
+Outputs are written under:
+
+```text
+repo-to-x-workspace/runs/<run-id>/
+```
+
+Each repo gets:
+
+- `repo_context.json`
+- `file_manifest.txt`
+- `claims_ledger.json`
+- `cross_check_review.md`
+- `posting_pack.md`
+- `images_manifest.json`
+- `images/`
+- `repo/` when the source is remote
+
+`repo-to-x-workspace/` is ignored by git. It is the local, accessible place for cloned repos, generated images, drafts, review notes, and final posting packs.
+
 ## Output Bias
 
 The skill is tuned for practical publishing. A good run should end with:
@@ -61,3 +94,23 @@ Set one of:
 - `GITHUB_PERSONAL_ACCESS_TOKEN`
 
 `.env` files are ignored by git. Do not commit real tokens.
+
+## Git Hygiene
+
+Tracked:
+
+- `SKILL.md`
+- `README.md`
+- `scripts/`
+- `references/`
+- `evals/`
+- `.env.example`
+
+Ignored:
+
+- `.env`
+- `repo-to-x-workspace/`
+- generated run outputs
+- cloned third-party repos
+- generated images
+- repo-specific claims ledgers and posting packs
