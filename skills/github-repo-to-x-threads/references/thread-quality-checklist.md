@@ -34,6 +34,9 @@ Use this when the repo facts are collected but before final output.
 - Alt text is ready to paste into X.
 - Generated-image disclosure is ready when needed.
 - A one-post short version is included when it would materially reduce publishing friction.
+- Publish mode is explicit: `manual-safe` or `official-api-publish`.
+- `official-api-publish` is not used unless the user explicitly approved live CLI posting.
+- `official-api-publish` uses official X OAuth2 user credentials, not app-only `X_BEARER_TOKEN` and not cookie/session/proxy automation.
 
 ## Visual Safety
 
@@ -47,6 +50,8 @@ Use this when the repo facts are collected but before final output.
 ## GPT Image 2 Quality
 
 - If image generation is available and the user requested images, the agent generates images rather than only writing prompts.
+- If the user says GPT Image 2, image2, generated images, actual images, or 配图, the agent treats this as a hard trigger to use the native `imagegen` / built-in image generation path.
+- Script-drawn cards, SVG placeholders, browser screenshots, HTML/CSS, canvas, or Python charts are not acceptable substitutes for GPT Image-style generated assets unless the user explicitly requested deterministic code-native visuals.
 - Prompts specify aspect ratio, composition, and the post where the image will be used.
 - Prompts explicitly avoid fake screenshots, fake GitHub metrics, and fake benchmark tables when relevant.
 - The first image supports the hook; later images explain architecture, workflow, or personal vision.

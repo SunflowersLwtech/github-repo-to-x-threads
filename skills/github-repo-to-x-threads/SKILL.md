@@ -30,6 +30,7 @@ Infer these from the prompt when possible. Ask only if the missing answer would 
 - **Output size**: default to one main X thread with 6-10 posts.
 - **Visuals**: default to 1-3 image concepts; generate images with GPT Image 2 or the available image generation tool if the user asked for generated assets.
 - **Final-mile preference**: default to a paste-ready posting pack, not a prose-only critique. The user should be able to publish with minimal manual cleanup.
+- **Publish mode**: default to `manual-safe`. Use `official-api-publish` only when the user explicitly wants CLI posting and has configured official X API user credentials. Never default to cookie/session/proxy-based posting services.
 
 ## Core Workflow
 
@@ -199,6 +200,7 @@ Include:
 - **Disclosure text**: one short line when images are generated or conceptual.
 - **Pre-flight checklist**: 5-8 short checks the user can scan before posting.
 - **Optional short version**: when useful, provide a single-post version for quick posting.
+- **Publish mode**: state `manual-safe` or `official-api-publish`.
 
 Keep this section practical. Avoid long explanations after the user has a paste-ready draft.
 
@@ -232,9 +234,59 @@ Suggested final-mile template:
 - Link works.
 ````
 
+### 6.1 Optional Official X API Publish
+
+Only use this mode when the user explicitly asks for CLI publishing or full automation. This path can publish the first post and the rest of the thread from the CLI. The first post is created with `POST /2/tweets` without a `reply` field; each later post is created with `reply.in_reply_to_tweet_id` pointing to the previous post by default.
+
+Do not use non-API website automation, browser scripting, cookie replay, hidden GraphQL calls, `auth_session` services, proxy-based posting, or third-party APIs as the default publish path. If the user asks for a free no-ban fully automated path, explain that the safe full-automation path is the official X API and that X API writes are pay-per-use.
+
+Credential rule:
+
+- `X_BEARER_TOKEN` is not enough to publish because it is app-only/read-oriented.
+- Prefer OAuth2 user tokens with scopes: `tweet.read users.read tweet.write media.write offline.access`.
+- The setup helper writes `X_OAUTH2_ACCESS_TOKEN` and `X_OAUTH2_REFRESH_TOKEN` into a local ignored `.env`.
+- The user must create or configure an X Developer App, enable OAuth2, and register the exact callback URL used by the helper.
+
+One-time credential setup:
+
+```bash
+python -B <skill-dir>/scripts/x_oauth2_pkce_setup.py --env-file .env
+```
+
+The helper opens the X consent screen, listens on `http://127.0.0.1:8765/callback` by default, exchanges the code, and stores tokens locally. If the X app uses a different callback URL, set `X_REDIRECT_URI` or pass `--redirect-uri`.
+
+Dry-run a publish plan before any live post:
+
+```bash
+python -B <skill-dir>/scripts/x_publish_thread.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<repo-id>
+```
+
+Live publish only after the user confirms the posting pack and images:
+
+```bash
+python -B <skill-dir>/scripts/x_publish_thread.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<repo-id> \
+  --live
+```
+
+The live publisher:
+
+- reads `posting_pack.md` or `posting_queue.json`,
+- uploads governed images from `images_manifest.json`,
+- attempts to set media alt text,
+- marks posts with `made_with_ai` when generated images are attached,
+- posts the first item as the root post,
+- posts later items as replies,
+- writes `x_publish_log.json` without tokens.
+
+Never run `--live` if `cross_check_review.md` is not `pass`, referenced images are missing from `images_manifest.json`, or the user has not explicitly approved the final copy.
+
 ### 7. Produce GPT Image 2 Visual Assets
 
-When the user asks for GPT Image 2 or GPT Image-style generated images, use the available image generation tool after the text strategy is clear.
+When the user asks for GPT Image 2, generated images, actual images, or "配图", use the `imagegen` skill / built-in `image_gen` tool after the text strategy is clear. This is a hard trigger for this skill. Do not satisfy an image request by drawing low-quality placeholder cards with Python, SVG, HTML/CSS, or canvas unless the user explicitly asks for deterministic code-native graphics.
+
+If the built-in image tool returns an image in chat or under `$CODEX_HOME/generated_images/...`, copy or move the selected image file into the repo run directory's `images/` folder, then register it. If the tool cannot expose a local file path, register the asset as `prompt_only` and clearly say the actual file could not be governed locally. Do not pretend a chat-only image is a local posting asset.
 
 Responsible visual rules:
 

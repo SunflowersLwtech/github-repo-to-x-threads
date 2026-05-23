@@ -35,6 +35,7 @@ Given one or more GitHub repos, owner/repo strings, or local paths, the skill gu
 4. draft a paste-ready X thread with attribution and caveats,
 5. create a final-mile posting pack with image placement and alt text,
 6. govern GPT Image 2-style assets through a local image registry.
+7. optionally publish the approved pack through the official X API from the CLI.
 
 ## Install For Local Use
 
@@ -147,9 +148,58 @@ The registry writes `images_manifest.json` with:
 
 If the generation tool cannot expose a file path, register a prompt-only entry with `--prompt-only` and do not claim an actual governed image file exists.
 
+When an agent is asked for actual images, it should use its native image generation capability first, such as Codex `imagegen` / built-in image generation. Script-drawn cards, SVG placeholders, browser screenshots, or canvas diagrams are not substitutes for GPT Image-style assets unless the user explicitly asked for deterministic code-native graphics.
+
+## Official X API CLI Publishing
+
+Full automation is supported only through official X API user credentials. The first post is created by the CLI as a normal root post; each later thread item is created as a reply to the previous post by default.
+
+Existing app-only keys such as `X_BEARER_TOKEN` are not enough to publish. For the bundled publisher, configure OAuth2 user credentials with these scopes:
+
+```text
+tweet.read users.read tweet.write media.write offline.access
+```
+
+One-time setup:
+
+1. Create or open your app in the X Developer Portal.
+2. Enable OAuth2 user authentication for the app.
+3. Add this callback URL exactly, or set your own and use it consistently:
+
+```text
+http://127.0.0.1:8765/callback
+```
+
+4. Put the app's OAuth2 Client ID in your local ignored `.env`:
+
+```bash
+cp skills/github-repo-to-x-threads/.env.example .env
+# edit .env and set X_CLIENT_ID, optionally X_CLIENT_SECRET
+python -B skills/github-repo-to-x-threads/scripts/x_oauth2_pkce_setup.py --env-file .env
+```
+
+Dry-run the generated posting pack:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_publish_thread.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<repo-id>
+```
+
+Publish after review:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_publish_thread.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<repo-id> \
+  --live
+```
+
+The publisher uploads registered images, attempts to set alt text, marks generated-image posts with `made_with_ai`, posts the first thread item, then replies with the rest. It writes `x_publish_log.json` in the ignored run directory and never logs tokens.
+
+Do not use cookie replay, website automation, hidden GraphQL calls, `auth_session` services, or proxy-based third-party posting as this project's default path.
+
 ## Local Env
 
-Create a local `.env` when you want live GitHub metadata through `gh`:
+Create a local `.env` when you want live GitHub metadata or official X API publishing:
 
 ```bash
 cp skills/github-repo-to-x-threads/.env.example .env
@@ -160,6 +210,8 @@ Set one of:
 - `GH_TOKEN`
 - `GITHUB_TOKEN`
 - `GITHUB_PERSONAL_ACCESS_TOKEN`
+
+For official X API publishing, set `X_CLIENT_ID` first and then run `x_oauth2_pkce_setup.py` to populate `X_OAUTH2_ACCESS_TOKEN` and `X_OAUTH2_REFRESH_TOKEN`.
 
 `.env` files are ignored by git. Do not commit real tokens.
 

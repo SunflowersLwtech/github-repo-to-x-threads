@@ -15,6 +15,8 @@ repo-to-x-workspace/
           claims_ledger.json
           cross_check_review.md
           posting_pack.md
+          posting_queue.json     # optional parsed queue for official CLI publishing
+          x_publish_log.json      # optional dry-run/live publish log, no tokens
           images_manifest.json
           images/
           repo/                  # cloned remote repo, when source is remote
@@ -39,6 +41,7 @@ repo-to-x-workspace/
 - Draft posting packs.
 - Claims ledgers generated from specific repos.
 - Cross-check review notes generated for a specific run.
+- Posting queues and publish logs generated for a specific run.
 
 ## Image Asset Contract
 
@@ -64,3 +67,12 @@ Use `scripts/register_image_asset.py` to copy image files into `images/` and upd
 - `alt_text`,
 - `disclosure`,
 - `review_status`.
+
+## Official X Publish Contract
+
+`scripts/x_publish_thread.py` may create these files in the repo run directory:
+
+- `posting_queue.json`: parsed post text and image id placement.
+- `x_publish_log.json`: dry-run or live publish result, tweet ids, media ids, and status.
+
+These files are local run artifacts and must not enter git. They must never include X tokens, refresh tokens, cookie values, sessions, or proxy credentials.

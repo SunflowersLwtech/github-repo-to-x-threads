@@ -11,6 +11,8 @@
 - Never commit `.env`, tokens, cloned third-party repos, generated run workspaces, or generated image files.
 - Treat all public X copy as claim-sensitive: verified repo facts, live metadata, inference, and user vision must stay separated.
 - Generated images are conceptual unless they are actual repo/user assets and must be registered in `images_manifest.json`.
+- Use official X API publishing only with explicit user approval and OAuth2 user credentials; never add cookie/session/proxy-based posting as a default path.
+- Treat GPT Image 2 / image2 / 配图 requests as a native image-generation requirement, not as permission to generate placeholder diagrams with scripts.
 
 ## Verification
 

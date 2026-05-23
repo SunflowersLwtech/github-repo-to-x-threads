@@ -13,6 +13,11 @@ This file is generated per repo and should stay in the local ignored workspace u
 
 Write the strategy here.
 
+## Publish Mode
+
+- Default: `manual-safe`
+- Optional after explicit approval and official X API OAuth2 setup: `official-api-publish`
+
 ## Ready To Post
 
 ```text
@@ -60,6 +65,8 @@ Image governance:
 - Every attached image is registered in `images_manifest.json`.
 - Link works.
 - Cross-check review status is `pass`.
+- For `official-api-publish`: user explicitly approved `--live`.
+- For `official-api-publish`: `.env` has OAuth2 user token credentials, not only `X_BEARER_TOKEN`.
 
 ## Do Not Say
 
