@@ -27,7 +27,8 @@ Write the strategy here.
 
 ## Posting Map
 
-- Post 1: attach image 1
+- Thread count is adaptive. Use `N` only after the final draft is reviewed; do not force exactly 8 posts.
+- Post 1: attach image 1 by default unless the user explicitly opted out of images
   - Alt text:
   - Disclosure:
   - Registry id: `image-1`
@@ -51,10 +52,13 @@ Allowed states:
 
 Image governance:
 
+- Actual generated images are required by default for ready-to-post packs unless the user explicitly requested text-only, no images, prompts-only, or manual images.
 - Register generated image files with `scripts/register_image_asset.py`.
 - Keep image files under `images/`, not in chat-only output or random temp folders.
 - Do not mark this pack ready while a referenced image is missing from `images_manifest.json`.
+- Do not mark this pack ready while images are only `planned` or `prompt_only`, unless prompt-only was an explicit user choice or the image tool is unavailable.
 - Actual image files need `sha256`, `mime_type`, alt text, disclosure, and review status.
+- Run `scripts/check_image_assets.py <repo-run-dir>` before presenting this as ready.
 
 ## Pre-Flight
 
@@ -63,6 +67,7 @@ Image governance:
 - No unsupported "best/first/only" claim.
 - Images are conceptual or attributed.
 - Every attached image is registered in `images_manifest.json`.
+- Actual image gate passed, unless prompt-only/manual images were explicitly chosen.
 - Link works.
 - Cross-check review status is `pass`.
 - For `official-api-publish`: user explicitly approved `--live`.

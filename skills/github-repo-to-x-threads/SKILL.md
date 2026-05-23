@@ -27,8 +27,8 @@ Infer these from the prompt when possible. Ask only if the missing answer would 
 - **User relationship to the repo**: default to `independent sharer` unless the user clearly says they are the author, maintainer, contributor, or company/team member.
 - **Posting language**: match the user's language; for Chinese prompts, write Chinese by default with technical English terms where natural.
 - **User angle**: optional personal vision, use case, comparison, build plan, demo plan, or critique.
-- **Output size**: default to one main X thread with 6-10 posts.
-- **Visuals**: default to 1-3 image concepts; generate images with GPT Image 2 or the available image generation tool if the user asked for generated assets.
+- **Output size**: adaptive. Use as many posts as the repo evidence and user angle genuinely need. Prefer a concise 4-8 post thread for simple repos, 8-12 for rich repos or repo+vision posts, and split further only when nuance, caveats, or evidence would otherwise be lost. Do not force exactly 8 posts.
+- **Visuals**: default to 1-3 actual generated images for final posting packs. Use GPT Image 2 or the available built-in image generation tool unless the user explicitly says text-only, no images, prompts-only, or manual images. Do not require the user to separately ask for generated assets after they invoked this skill.
 - **Final-mile preference**: default to a paste-ready posting pack, not a prose-only critique. The user should be able to publish with minimal manual cleanup.
 - **Publish mode**: default to `manual-safe`. Use `official-api-publish` only when the user explicitly wants CLI posting and has configured official X API user credentials. Never default to cookie/session/proxy-based posting services.
 
@@ -160,7 +160,7 @@ For the user's common target style, prefer:
 
 ### 5. Draft The X Thread
 
-Default structure:
+Adaptive structure:
 
 1. Hook + exact attribution + repo link.
 2. What the repo actually does.
@@ -169,14 +169,16 @@ Default structure:
 5. The user's personal angle or vision, clearly labeled.
 6. Deployment path, use case, or implication.
 7. Caveats / early-stage boundary / what not to overclaim.
-8. Closing question or discussion prompt.
+8. Closing question or discussion prompt when useful.
+
+The structure is a thinking scaffold, not a fixed post count. Drop sections that are irrelevant, merge thin sections, and add sections when the repo needs more careful attribution, evidence, comparisons, caveats, or user vision. A shorter accurate thread is better than padded content; a longer careful thread is better than compressing away responsibility.
 
 Length guidance:
 
 - Keep each post short enough to paste into X comfortably.
 - For standard X accounts, aim for roughly 240-270 visible characters per post.
 - If a post needs more nuance, split it rather than compressing into vague language.
-- Number posts as `(1/8)`, `(2/8)`, etc. when the user wants a thread.
+- Number posts as `(1/N)`, `(2/N)`, etc. after the final post count is known. Do not lock to 8 posts before drafting and reviewing the content.
 
 Avoid:
 
@@ -284,9 +286,11 @@ Never run `--live` if `cross_check_review.md` is not `pass`, referenced images a
 
 ### 7. Produce GPT Image 2 Visual Assets
 
-When the user asks for GPT Image 2, generated images, actual images, or "配图", use the `imagegen` skill / built-in `image_gen` tool after the text strategy is clear. This is a hard trigger for this skill. Do not satisfy an image request by drawing low-quality placeholder cards with Python, SVG, HTML/CSS, or canvas unless the user explicitly asks for deterministic code-native graphics.
+Default rule: a final X posting pack includes actual generated images. When this skill is invoked for a repo-to-X posting pack, treat image generation as required by default. Use the `imagegen` skill / built-in `image_gen` tool after the text strategy is clear unless the user explicitly opts out with text-only, no images, prompts-only, or manual images. Do not say "images were not generated because the user did not explicitly request generated assets"; invoking this skill is enough signal to generate the default visual pack.
 
-If the built-in image tool returns an image in chat or under `$CODEX_HOME/generated_images/...`, copy or move the selected image file into the repo run directory's `images/` folder, then register it. If the tool cannot expose a local file path, register the asset as `prompt_only` and clearly say the actual file could not be governed locally. Do not pretend a chat-only image is a local posting asset.
+Hard triggers: if the user asks for GPT Image 2, Image 2, image2, generated images, actual images, or "配图", generate images. Do not stop at prompts. Do not satisfy an image request by drawing low-quality placeholder cards with Python, SVG, HTML/CSS, or canvas unless the user explicitly asks for deterministic code-native graphics.
+
+If the built-in image tool returns an image in chat or under `$CODEX_HOME/generated_images/...`, copy or move the selected image file into the repo run directory's `images/` folder, then register it. If the tool cannot expose a local file path, register the asset as `prompt_only` and clearly say the actual file could not be governed locally. `prompt_only` is a fallback for tool limitations or explicit user opt-out, not the default path. Do not pretend a chat-only image is a local posting asset.
 
 Responsible visual rules:
 
@@ -310,7 +314,7 @@ For each image, output:
 - Alt text: concise, accessible description.
 - Disclosure line: e.g. "Generated conceptual visual, not an official project screenshot."
 
-If image generation is available and the user requested actual images, generate 1-3 images. Do not stop at prompts. If image generation is not available, provide ready-to-run prompts and make that limitation explicit.
+If image generation is available, generate 1-3 images by default. Do not stop at prompts. If image generation is not available, provide ready-to-run prompts, register them as `prompt_only`, and make that limitation explicit.
 
 Generated images must be stored under the repo run directory's `images/` folder and recorded in `images_manifest.json` when a run workspace exists. Do not leave generated images only in chat, Downloads, a hidden app cache, or a random temp folder when the user asked for a governed posting pack.
 
@@ -344,6 +348,14 @@ Before saying the pack is ready, check `images_manifest.json`:
 - actual files have `path`, `sha256`, and `mime_type`,
 - every entry has `alt_text` and `disclosure`,
 - generated/conceptual images have `review_status` set to `approved` or are clearly marked as needing review.
+
+When a run workspace exists, run the image gate before presenting "Ready To Post":
+
+```bash
+python -B <skill-dir>/scripts/check_image_assets.py <repo-run-dir>
+```
+
+If this command fails because images are still `planned` or `prompt_only`, use `imagegen` / built-in image generation and register the generated files before claiming the pack is ready. Only pass `--allow-prompt-only` when the user explicitly opted out of actual images or the image tool is unavailable.
 
 Default Image 2 pack:
 
@@ -454,7 +466,7 @@ Before finalizing, run this checklist:
 Use this pattern when the user says the project is not theirs:
 
 ```text
-(1/8) 最近看到一个很有意思的开源项目：<repo> by <owner>.
+(1/N) 最近看到一个很有意思的开源项目：<repo> by <owner>.
 
 它做的是 <verified project scope>. 我不是项目成员，只是从开发者视角觉得这个方向值得认真看一下。
 

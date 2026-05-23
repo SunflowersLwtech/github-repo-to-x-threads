@@ -22,6 +22,8 @@ Use this when the repo facts are collected but before final output.
 
 - The hook is specific and not clickbait.
 - Each post adds a new reason to care.
+- The thread count is adaptive to the evidence and user angle; it is not forced to exactly 8 posts.
+- Thin sections are merged or dropped; complex evidence, caveats, or user vision can add posts.
 - Technical terms are concrete enough for developers but not written like README paste.
 - Caveats make the post more credible, not weaker.
 - The ending invites discussion, not blind hype.
@@ -49,10 +51,12 @@ Use this when the repo facts are collected but before final output.
 
 ## GPT Image 2 Quality
 
-- If image generation is available and the user requested images, the agent generates images rather than only writing prompts.
+- Image generation is the default for final posting packs unless the user explicitly says text-only, no images, prompts-only, or manual images.
+- If image generation is available, the agent generates images rather than only writing prompts.
 - If the user says GPT Image 2, image2, generated images, actual images, or 配图, the agent treats this as a hard trigger to use the native `imagegen` / built-in image generation path.
 - Script-drawn cards, SVG placeholders, browser screenshots, HTML/CSS, canvas, or Python charts are not acceptable substitutes for GPT Image-style generated assets unless the user explicitly requested deterministic code-native visuals.
 - Prompts specify aspect ratio, composition, and the post where the image will be used.
 - Prompts explicitly avoid fake screenshots, fake GitHub metrics, and fake benchmark tables when relevant.
 - The first image supports the hook; later images explain architecture, workflow, or personal vision.
+- `scripts/check_image_assets.py <repo-run-dir>` passes before the pack is described as ready.
 - If the image tool cannot expose a file path, the manifest records a `prompt_only` entry and the final answer says that actual image generation could not be governed locally.

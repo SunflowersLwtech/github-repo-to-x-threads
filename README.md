@@ -34,7 +34,7 @@ Given one or more GitHub repos, owner/repo strings, or local paths, the skill gu
 3. separate verified facts, reasonable inference, and user vision,
 4. draft a paste-ready X thread with attribution and caveats,
 5. create a final-mile posting pack with image placement and alt text,
-6. govern GPT Image 2-style assets through a local image registry.
+6. generate and govern GPT Image 2-style assets through a local image registry by default,
 7. optionally publish the approved pack through the official X API from the CLI.
 
 ## Install For Local Use
@@ -119,6 +119,8 @@ Each repo gets:
 
 ## Image Governance
 
+Final posting packs should generate actual images by default. Use text-only, no-images, prompts-only, or manual-image mode only when the user explicitly asks for it or the image tool is unavailable.
+
 Generated image files must be copied into the repo run directory and registered:
 
 ```bash
@@ -149,6 +151,19 @@ The registry writes `images_manifest.json` with:
 If the generation tool cannot expose a file path, register a prompt-only entry with `--prompt-only` and do not claim an actual governed image file exists.
 
 When an agent is asked for actual images, it should use its native image generation capability first, such as Codex `imagegen` / built-in image generation. Script-drawn cards, SVG placeholders, browser screenshots, or canvas diagrams are not substitutes for GPT Image-style assets unless the user explicitly asked for deterministic code-native graphics.
+
+Before a pack is presented as ready, run:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/check_image_assets.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<repo-id>
+```
+
+Only pass `--allow-prompt-only` when the user opted out of actual images or the image generation tool could not provide a governable local file.
+
+## Adaptive Threads
+
+The skill does not force exactly 8 posts. It uses the repo evidence and the user's angle to choose the length: short repos can be 4-6 posts, richer repo+vision posts can be 8-12, and longer threads are acceptable when needed for attribution, evidence, caveats, or practical use.
 
 ## Official X API CLI Publishing
 

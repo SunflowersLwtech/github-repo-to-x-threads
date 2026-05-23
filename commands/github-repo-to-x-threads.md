@@ -18,6 +18,10 @@ If `$CLAUDE_PLUGIN_ROOT` is not available, read:
 
 Analyze the repo sources provided in `$ARGUMENTS`, create a governed local run workspace, cross-check public claims, and produce a final X posting pack.
 
+Thread length is adaptive. Do not force exactly 8 posts; use the number of posts the repo evidence and user angle justify.
+
+Actual generated images are part of the default posting pack. Use native image generation when available, then register the files in `images_manifest.json`. Only leave prompt-only images when the user explicitly chose text-only/prompts-only/manual images or image generation is unavailable.
+
 For multi-repo or durable work, run:
 
 ```bash
@@ -33,3 +37,15 @@ python -B "skills/github-repo-to-x-threads/scripts/run_repo_to_x_pack.py" $ARGUM
 Then read the generated `SUMMARY.md`, each `repo_context.json`, `claims_ledger.json`, `cross_check_review.md`, `posting_pack.md`, and `images_manifest.json`.
 
 Do not present a pack as ready until `cross_check_review.md` is `pass`. Keep generated outputs in the local ignored workspace and do not commit `.env`, cloned repos, generated images, or repo-specific run artifacts.
+
+Before presenting "Ready To Post", run:
+
+```bash
+python -B "$CLAUDE_PLUGIN_ROOT/skills/github-repo-to-x-threads/scripts/check_image_assets.py" <repo-run-dir>
+```
+
+If using the repository skill path instead:
+
+```bash
+python -B "skills/github-repo-to-x-threads/scripts/check_image_assets.py" <repo-run-dir>
+```

@@ -10,7 +10,7 @@
     {
       "id": 2,
       "prompt": "I built this repo: https://github.com/example/example-ai-tool. Please write a launch thread for X with image prompts, but don't overclaim maturity. Make it sound like a serious developer shipped it.",
-      "expected_output": "Uses author/maintainer voice, still verifies repo facts and metadata, separates shipped features from roadmap, drafts a launch-style X thread, includes a clean Ready To Post block, and includes responsible GPT Image 2 prompts or generated images registered under the run workspace.",
+      "expected_output": "Uses author/maintainer voice, still verifies repo facts and metadata, separates shipped features from roadmap, drafts a launch-style X thread, includes a clean Ready To Post block, respects that the user asked for prompts rather than actual generated files, and registers prompt-only image entries only because the user chose prompt mode.",
       "files": []
     },
     {
@@ -22,7 +22,7 @@
     {
       "id": 4,
       "prompt": "我丢 5 个 GitHub repo 给你，帮我统一治理成可 review 的发 X 候选池。每个 repo 都要有 claims ledger、cross-check review、posting pack 和图片 manifest，所有运行结果落盘但不要进 git。",
-      "expected_output": "Uses the governed multi-repo run workspace, writes per-repo artifacts under repo-to-x-workspace/runs/<run-id>/repos/<repo-id>/, keeps generated outputs ignored by git, includes governed images_manifest.json entries for generated or prompt-only images, and explains which repos are ready, need revision, or should be blocked.",
+      "expected_output": "Uses the governed multi-repo run workspace, writes per-repo artifacts under repo-to-x-workspace/runs/<run-id>/repos/<repo-id>/, keeps generated outputs ignored by git, includes governed images_manifest.json entries, treats actual generated images as the default for ready-to-post candidates, runs or references the image asset gate, and explains which repos are ready, need revision, or should be blocked.",
       "files": []
     },
     {
@@ -35,6 +35,12 @@
       "id": 6,
       "prompt": "给这个 repo 生成 3 张 image2 配图，不要只是 prompts。",
       "expected_output": "Treats image2/配图 as a hard trigger for native image generation, uses imagegen or the available built-in image generation path instead of script-drawn placeholders, stores selected files under the run workspace images/ directory when a path is available, registers them in images_manifest.json with alt text/disclosure/review status, and records prompt_only only when the tool cannot expose a local file.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "colbymchenry/codegraph 帮我做成可直接发 X 的 posting pack。",
+      "expected_output": "Does not say images were skipped because the user did not explicitly request generated assets. Uses adaptive thread length rather than forcing exactly 8 posts, generates at least one actual image with the native image generation path when available, registers the generated file under images_manifest.json, runs scripts/check_image_assets.py before saying Ready To Post, and only uses prompt-only if the user opted out or the image tool is unavailable.",
       "files": []
     }
   ]
