@@ -28,6 +28,7 @@ Infer these from the prompt when possible. Ask only if the missing answer would 
 - **User angle**: optional personal vision, use case, comparison, build plan, demo plan, or critique.
 - **Output size**: default to one main X thread with 6-10 posts.
 - **Visuals**: default to 1-3 image concepts; generate images with GPT Image 2 or the available image generation tool if the user asked for generated assets.
+- **Final-mile preference**: default to a paste-ready posting pack, not a prose-only critique. The user should be able to publish with minimal manual cleanup.
 
 ## Core Workflow
 
@@ -146,7 +147,51 @@ Avoid:
 - Hidden affiliation.
 - Asking people to contribute to a project the user does not own.
 
-### 6. Produce Visual Assets
+### 6. Build The Final-Mile Posting Pack
+
+The final output should reduce the user's posting friction. After drafting, convert the thread into a practical publishing pack.
+
+Include:
+
+- **Paste-ready thread**: one clean code block containing only the posts, with no commentary inside.
+- **Per-post length audit**: mark each post as `OK`, `Tight`, or `Split` based on visible length. Do not force exact counts when multilingual text makes counting unreliable; use a conservative estimate and split posts that are clearly too long.
+- **Image placement**: specify which image goes with which post, usually image 1 on the hook post and optional supporting images on later posts.
+- **Alt text**: one short alt text per image, ready to paste into X.
+- **Disclosure text**: one short line when images are generated or conceptual.
+- **Pre-flight checklist**: 5-8 short checks the user can scan before posting.
+- **Optional short version**: when useful, provide a single-post version for quick posting.
+
+Keep this section practical. Avoid long explanations after the user has a paste-ready draft.
+
+Suggested final-mile template:
+
+````markdown
+**Ready To Post**
+```text
+(1/N) ...
+
+(2/N) ...
+```
+
+**Posting Map**
+- Post 1: attach image 1, alt text: ...
+- Post 4: attach image 2, alt text: ...
+- Disclosure: Generated conceptual visual, not an official project screenshot.
+
+**Length Audit**
+- 1/N: OK
+- 2/N: Tight, do not add more text
+- 3/N: OK
+
+**Pre-Flight**
+- Repo owner credited.
+- Personal vision labeled as personal.
+- No unsupported "best/first/only" claim.
+- Images are conceptual or attributed.
+- Link works.
+````
+
+### 7. Produce GPT Image 2 Visual Assets
 
 When the user asks for GPT Image 2 or GPT Image-style generated images, use the available image generation tool after the text strategy is clear.
 
@@ -163,21 +208,36 @@ Good image concepts:
 - Architecture/workflow: `GitHub repo -> evidence extraction -> claims ledger -> X thread -> generated visuals`.
 - Domain visual: a realistic but clearly conceptual scene matching the project domain.
 - Vision visual: a staged roadmap from current repo capabilities to the user's personal deployment idea.
+- Evidence visual: only when built from verified repo artifacts, and never as a fake screenshot.
 
 For each image, output:
 
 - Purpose: where it fits in the thread.
-- Prompt: ready for GPT Image / image generation.
+- Prompt: ready for GPT Image 2 / image generation.
 - Alt text: concise, accessible description.
 - Disclosure line: e.g. "Generated conceptual visual, not an official project screenshot."
 
-If image generation is available and the user requested actual images, generate 1-3 images. If not available, provide ready-to-run prompts.
+If image generation is available and the user requested actual images, generate 1-3 images. Do not stop at prompts. If image generation is not available, provide ready-to-run prompts and make that limitation explicit.
 
-### 7. Final Output Format
+Default Image 2 pack:
+
+1. **Hero image** for post 1: visually communicates the repo domain and the user's angle without pretending to be an official asset.
+2. **Architecture or workflow image** for a middle post: explains how the repo works or how the user's analysis pipeline works.
+3. **Vision image** for a later post: shows the user's personal deployment path or future framing.
+
+Image prompt rules:
+
+- Include aspect ratio preference. For X, default to `16:9` for landscape technical diagrams or `4:5` for high-feed visual weight.
+- Specify clean composition, readable spacing, no fake UI text unless the text is generic and minimal.
+- Avoid logos unless the repo provides one and usage is appropriate.
+- Prefer "conceptual illustration" or "technical diagram" language when the image is not evidence.
+- Add "no fake screenshots, no fake GitHub metrics, no fake benchmark tables" to the prompt when relevant.
+
+### 8. Final Output Format
 
 Use this format unless the user asks otherwise:
 
-```markdown
+````markdown
 **Evidence**
 - Repo: ...
 - Local source checked: ...
@@ -188,12 +248,22 @@ Use this format unless the user asks otherwise:
 **Posting Strategy**
 ...
 
-**X Thread**
+**Ready To Post**
+```text
 (1/N) ...
 
 (2/N) ...
 
 ...
+```
+
+**Posting Map**
+- Post 1: attach image 1, alt text: ...
+- Disclosure: ...
+
+**Length Audit**
+- 1/N: OK
+- 2/N: OK
 
 **Images**
 1. Purpose: ...
@@ -203,9 +273,9 @@ Use this format unless the user asks otherwise:
 
 **Do Not Say**
 - ...
-```
+````
 
-If the answer is for immediate posting, put the thread in a single clean code block after the strategy so the user can paste it.
+If the answer is for immediate posting, the `Ready To Post` block is the primary artifact. Keep surrounding analysis brief enough that the user can quickly find the copyable thread.
 
 ## Quality Bar
 
@@ -219,6 +289,8 @@ Before finalizing, run this checklist:
 - Does it include at least one caveat or maturity boundary when appropriate?
 - Would a maintainer of the repo feel accurately represented?
 - Are generated images clearly conceptual rather than fake evidence?
+- Can the user publish from the `Ready To Post` block without rewriting formatting?
+- Are image placement, alt text, and generated-image disclosure clear?
 
 ## Example: Independent Share + Personal Vision
 

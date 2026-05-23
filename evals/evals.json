@@ -4,19 +4,19 @@
     {
       "id": 1,
       "prompt": "帮我分析 https://github.com/MINT-SJTU/RoboClaw，写一条中文 X thread。我不是项目作者，只是想负责地分享这个项目，并结合我自己从客厅到开放世界的具身智能 vision。需要配图。",
-      "expected_output": "Clones or reads the repo, checks GitHub metadata, credits the real project owner, separates repo facts from personal vision, avoids contributor recruitment, drafts a paste-ready Chinese X thread, and provides or generates conceptual image assets with disclosure.",
+      "expected_output": "Clones or reads the repo, checks GitHub metadata, credits the real project owner, separates repo facts from personal vision, avoids contributor recruitment, drafts a paste-ready Chinese X thread, includes a final-mile posting map with length audit and alt text, and provides or generates GPT Image 2 conceptual image assets with disclosure.",
       "files": []
     },
     {
       "id": 2,
       "prompt": "I built this repo: https://github.com/example/example-ai-tool. Please write a launch thread for X with image prompts, but don't overclaim maturity. Make it sound like a serious developer shipped it.",
-      "expected_output": "Uses author/maintainer voice, still verifies repo facts and metadata, separates shipped features from roadmap, drafts a launch-style X thread, and includes responsible visual prompts.",
+      "expected_output": "Uses author/maintainer voice, still verifies repo facts and metadata, separates shipped features from roadmap, drafts a launch-style X thread, includes a clean Ready To Post block, and includes responsible GPT Image 2 prompts or generated images.",
       "files": []
     },
     {
       "id": 3,
       "prompt": "这个本地目录 /tmp/some-open-source-repo 我想发 X 推荐一下。只要分析项目本身，不要加我的个人 vision。输出要能直接复制发。",
-      "expected_output": "Reads the local repo, fetches origin metadata if available, produces a concise independent recommendation thread, includes evidence/caveats, and avoids unsupported social metrics if unavailable.",
+      "expected_output": "Reads the local repo, fetches origin metadata if available, produces a concise independent recommendation thread, includes evidence/caveats, avoids unsupported social metrics if unavailable, and gives a copy-paste ready final posting pack.",
       "files": []
     }
   ]
