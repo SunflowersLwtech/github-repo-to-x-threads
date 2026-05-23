@@ -52,16 +52,16 @@ It writes:
   .codex-plugin/plugin.json             # Codex plugin manifest
   .claude-plugin/plugin.json            # Claude plugin manifest
   commands/github-repo-to-x-threads.md  # Claude plugin command
-  .agents/skills/github-repo-to-x-threads/  # Codex repo adapter
   .claude/skills/github-repo-to-x-threads/  # Claude project adapter
 ```
 
-It also installs user-level Codex skill copies to:
+It also installs one user-level Codex skill copy to:
 
 ```text
 ~/.agents/skills/github-repo-to-x-threads/
-~/.codex/skills/github-repo-to-x-threads/   # compatibility fallback for current Codex app builds
 ```
+
+Do not also keep this skill under `~/.codex/skills/` or the bundle's `.agents/skills/`; Codex will show duplicate entries if the same skill is present in multiple scanned locations.
 
 ## Manual Install
 
@@ -179,7 +179,8 @@ Tracked:
 Ignored:
 
 - `.env`
-- `.claude/` and `.agents/` generated local adapters
+- `.claude/` generated local adapters
+- `.agents/` duplicate local adapters
 - `repo-to-x-workspace/`
 - cloned third-party repos
 - generated images

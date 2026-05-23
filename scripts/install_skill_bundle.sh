@@ -14,7 +14,6 @@ skill_src="$source_root/skills/$skill_name"
 
 canonical_skill_dir="$bundle_root/skills/$skill_name"
 claude_project_skill_dir="$bundle_root/.claude/skills/$skill_name"
-codex_project_skill_dir="$bundle_root/.agents/skills/$skill_name"
 claude_project_command_dir="$bundle_root/.claude/commands"
 plugin_command_dir="$bundle_root/commands"
 
@@ -49,9 +48,7 @@ mkdir -p \
 
 copy_skill "$canonical_skill_dir"
 copy_skill "$claude_project_skill_dir"
-copy_skill "$codex_project_skill_dir"
 copy_skill "$codex_user_skill_dir"
-copy_skill "$codex_legacy_skill_dir"
 
 cp "$source_root/.codex-plugin/plugin.json" "$bundle_root/.codex-plugin/plugin.json"
 cp "$source_root/.claude-plugin/plugin.json" "$bundle_root/.claude-plugin/plugin.json"
@@ -62,19 +59,19 @@ cp "$source_root/README.md" "$bundle_root/README.md"
 
 rm -f "$bundle_root/$skill_name.skill"
 rm -rf "$bundle_root/.claude/skills/$skill_name/.claude" "$bundle_root/.claude/skills/$skill_name/.claude-plugin"
-rm -rf "$bundle_root/.agents/skills/$skill_name/.claude" "$bundle_root/.agents/skills/$skill_name/.claude-plugin"
+rm -rf "$bundle_root/.agents/skills/$skill_name"
+rmdir "$bundle_root/.agents/skills" "$bundle_root/.agents" 2>/dev/null || true
+rm -rf "$codex_legacy_skill_dir"
 
 find "$bundle_root" -maxdepth 8 -name '.DS_Store' -delete
 find "$bundle_root" -maxdepth 8 -name '._*' -delete
 find "$bundle_root" -maxdepth 10 -name '__pycache__' -type d -prune -exec rm -rf {} +
 find "$codex_user_skill_dir" -maxdepth 8 -name '__pycache__' -type d -prune -exec rm -rf {} +
-find "$codex_legacy_skill_dir" -maxdepth 8 -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 if command -v xattr >/dev/null 2>&1; then
-  xattr -cr "$bundle_root" "$codex_user_skill_dir" "$codex_legacy_skill_dir" 2>/dev/null || true
+  xattr -cr "$bundle_root" "$codex_user_skill_dir" 2>/dev/null || true
   find "$bundle_root" -maxdepth 8 -name '._*' -delete
   find "$codex_user_skill_dir" -maxdepth 8 -name '._*' -delete
-  find "$codex_legacy_skill_dir" -maxdepth 8 -name '._*' -delete
 fi
 
 echo "Installed canonical plugin skill: $canonical_skill_dir"
@@ -82,6 +79,6 @@ echo "Installed Codex plugin manifest: $bundle_root/.codex-plugin/plugin.json"
 echo "Installed Claude plugin manifest: $bundle_root/.claude-plugin/plugin.json"
 echo "Installed plugin command: $plugin_command_dir/$skill_name.md"
 echo "Installed Claude project adapter: $claude_project_skill_dir"
-echo "Installed Codex repo adapter: $codex_project_skill_dir"
 echo "Installed Codex user skill: $codex_user_skill_dir"
-echo "Installed Codex legacy user skill: $codex_legacy_skill_dir"
+echo "Removed duplicate Codex repo adapter: $bundle_root/.agents/skills/$skill_name"
+echo "Removed duplicate Codex legacy user skill: $codex_legacy_skill_dir"
