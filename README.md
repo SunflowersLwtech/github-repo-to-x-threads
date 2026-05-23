@@ -117,10 +117,30 @@ Ignored:
 
 ## Clean External-Disk Sync
 
-For exFAT/FAT external disks, use the clean sync helper instead of plain copy:
+For a loadable skill bundle on an external disk, install into a `skills/` folder:
 
 ```bash
-scripts/sync_clean_external.sh . /Volumes/T7/AI_Dev/X/github-repo-to-x-threads
+scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X
 ```
 
-It sets `COPYFILE_DISABLE=1`, excludes `.DS_Store` and `._*`, then cleans any AppleDouble files produced during the sync.
+Expected layout:
+
+```text
+/Volumes/T7/AI_Dev/X/
+  skills/
+    github-repo-to-x-threads/
+      SKILL.md
+      scripts/
+      references/
+  github-repo-to-x-threads.skill
+```
+
+This matches the bundled skill layout used by OpenAI/Anthropic-style plugin folders: `<bundle-root>/skills/<skill-name>/SKILL.md`.
+
+For a plain folder backup, use:
+
+```bash
+scripts/sync_clean_external.sh . /Volumes/T7/AI_Dev/X/backups/github-repo-to-x-threads
+```
+
+Both helpers set `COPYFILE_DISABLE=1`, exclude `.DS_Store` and `._*`, then clean any AppleDouble files produced during the sync.
