@@ -63,18 +63,38 @@ rm -rf "$bundle_root/.agents/skills/$skill_name"
 rmdir "$bundle_root/.agents/skills" "$bundle_root/.agents" 2>/dev/null || true
 rm -rf "$codex_legacy_skill_dir"
 
-find "$bundle_root" -name 'repo-to-x-workspace' -type d -prune -exec rm -rf {} +
-find "$bundle_root" -name 'repo-to-x-output' -type d -prune -exec rm -rf {} +
-find "$bundle_root" -name 'repo-to-x-runs' -type d -prune -exec rm -rf {} +
+# Keep user-governed bundle-root artifacts such as:
+#   $bundle_root/.env
+#   $bundle_root/repo-to-x-workspace/
+# Only clean generated junk inside install/adaptor surfaces.
+cleanup_roots=(
+  "$canonical_skill_dir"
+  "$claude_project_skill_dir"
+  "$plugin_command_dir"
+  "$bundle_root/.codex-plugin"
+  "$bundle_root/.claude-plugin"
+)
+for cleanup_root in "${cleanup_roots[@]}"; do
+  [[ -e "$cleanup_root" ]] || continue
+  find "$cleanup_root" -name 'repo-to-x-workspace' -type d -prune -exec rm -rf {} +
+  find "$cleanup_root" -name 'repo-to-x-output' -type d -prune -exec rm -rf {} +
+  find "$cleanup_root" -name 'repo-to-x-runs' -type d -prune -exec rm -rf {} +
+  find "$cleanup_root" -name '__pycache__' -type d -prune -exec rm -rf {} +
+done
+
 find "$bundle_root" -name '.DS_Store' -delete
 find "$bundle_root" -name '._*' -delete
-find "$bundle_root" -name '__pycache__' -type d -prune -exec rm -rf {} +
 find "$codex_user_skill_dir" -maxdepth 8 -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 if command -v xattr >/dev/null 2>&1; then
   xattr -cr "$bundle_root" "$codex_user_skill_dir" 2>/dev/null || true
   find "$bundle_root" -name '._*' -delete
   find "$codex_user_skill_dir" -maxdepth 8 -name '._*' -delete
+fi
+
+if command -v dot_clean >/dev/null 2>&1; then
+  dot_clean -m "$bundle_root" 2>/dev/null || true
+  find "$bundle_root" -name '._*' -delete
 fi
 
 echo "Installed canonical plugin skill: $canonical_skill_dir"

@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,6 +63,27 @@ def repo_id(source: str, owner_repo: str | None, repo_path: Path) -> str:
 
 def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def clean_macos_junk(root: Path) -> None:
+    """Remove macOS sidecar/cache files from generated workspaces."""
+    if not root.exists():
+        return
+    for pattern in (".DS_Store", "._*"):
+        for path in root.rglob(pattern):
+            if path.is_file():
+                path.unlink(missing_ok=True)
+    for path in root.rglob("__pycache__"):
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+    for command in (["xattr", "-rc", str(root)], ["dot_clean", "-m", str(root)]):
+        try:
+            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        except FileNotFoundError:
+            continue
+    for path in root.rglob("._*"):
+        if path.is_file():
+            path.unlink(missing_ok=True)
 
 
 def template_text(path: Path) -> str:
@@ -311,6 +333,7 @@ def main() -> int:
 
     write_json(run_dir / "run_manifest.json", manifest)
     write_summary(run_dir, manifest)
+    clean_macos_junk(run_dir)
 
     print(f"Wrote run workspace: {run_dir}")
     print(f"Wrote manifest: {run_dir / 'run_manifest.json'}")

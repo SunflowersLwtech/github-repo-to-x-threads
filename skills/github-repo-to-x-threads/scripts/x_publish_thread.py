@@ -46,14 +46,14 @@ def load_env_file(path: Path) -> dict[str, str]:
 
 def load_env(paths: list[Path]) -> tuple[dict[str, str], Path | None]:
     merged: dict[str, str] = {}
-    first_existing: Path | None = None
+    highest_precedence_existing: Path | None = None
     for path in paths:
         expanded = path.expanduser().resolve()
         values = load_env_file(expanded)
-        if values and first_existing is None:
-            first_existing = expanded
+        if values:
+            highest_precedence_existing = expanded
         merged.update(values)
-    return merged, first_existing
+    return merged, highest_precedence_existing
 
 
 def upsert_env(path: Path, values: dict[str, str]) -> None:
@@ -347,7 +347,7 @@ def publish(args: argparse.Namespace) -> int:
         "posts": [],
     }
 
-    env, env_path = load_env([Path(args.env_file), Path.cwd() / ".env", repo_run_dir / ".env"])
+    env, env_path = load_env([repo_run_dir / ".env", Path.cwd() / ".env", Path(args.env_file)])
     token = env.get("X_OAUTH2_ACCESS_TOKEN") or env.get("X_USER_ACCESS_TOKEN", "")
     if args.live and not token:
         token = refresh_access_token(env, env_path)

@@ -197,6 +197,13 @@ The publisher uploads registered images, attempts to set alt text, marks generat
 
 Do not use cookie replay, website automation, hidden GraphQL calls, `auth_session` services, or proxy-based third-party posting as this project's default path.
 
+When using an external bundle such as `/Volumes/T7/AI_Dev/X`, you may keep local user-governed artifacts at the bundle root:
+
+- `/Volumes/T7/AI_Dev/X/.env`
+- `/Volumes/T7/AI_Dev/X/repo-to-x-workspace/`
+
+The installer preserves these bundle-root paths. Do not commit `.env`, and do not place real env files or generated run workspaces under `skills/`.
+
 ## Local Env
 
 Create a local `.env` when you want live GitHub metadata or official X API publishing:
