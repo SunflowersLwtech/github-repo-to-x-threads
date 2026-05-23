@@ -12,6 +12,7 @@ target_dir="${2%/}/"
 mkdir -p "$target_dir"
 
 COPYFILE_DISABLE=1 rsync -a --delete \
+  --exclude='.git' \
   --exclude='.env' \
   --exclude='.env.*' \
   --exclude='repo-to-x-workspace' \
@@ -26,6 +27,7 @@ COPYFILE_DISABLE=1 rsync -a --delete \
 find "$target_dir" -name '.DS_Store' -delete
 find "$target_dir" -name '._*' -delete
 find "$target_dir" -name '__pycache__' -type d -prune -exec rm -rf {} +
+rm -rf "$target_dir/.git"
 
 if command -v xattr >/dev/null 2>&1; then
   xattr -cr "$target_dir" 2>/dev/null || true
