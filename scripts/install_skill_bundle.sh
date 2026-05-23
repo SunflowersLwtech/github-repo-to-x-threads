@@ -63,14 +63,17 @@ rm -rf "$bundle_root/.agents/skills/$skill_name"
 rmdir "$bundle_root/.agents/skills" "$bundle_root/.agents" 2>/dev/null || true
 rm -rf "$codex_legacy_skill_dir"
 
-find "$bundle_root" -maxdepth 8 -name '.DS_Store' -delete
-find "$bundle_root" -maxdepth 8 -name '._*' -delete
-find "$bundle_root" -maxdepth 10 -name '__pycache__' -type d -prune -exec rm -rf {} +
+find "$bundle_root" -name 'repo-to-x-workspace' -type d -prune -exec rm -rf {} +
+find "$bundle_root" -name 'repo-to-x-output' -type d -prune -exec rm -rf {} +
+find "$bundle_root" -name 'repo-to-x-runs' -type d -prune -exec rm -rf {} +
+find "$bundle_root" -name '.DS_Store' -delete
+find "$bundle_root" -name '._*' -delete
+find "$bundle_root" -name '__pycache__' -type d -prune -exec rm -rf {} +
 find "$codex_user_skill_dir" -maxdepth 8 -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 if command -v xattr >/dev/null 2>&1; then
   xattr -cr "$bundle_root" "$codex_user_skill_dir" 2>/dev/null || true
-  find "$bundle_root" -maxdepth 8 -name '._*' -delete
+  find "$bundle_root" -name '._*' -delete
   find "$codex_user_skill_dir" -maxdepth 8 -name '._*' -delete
 fi
 
