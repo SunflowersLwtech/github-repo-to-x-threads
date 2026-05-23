@@ -120,7 +120,7 @@ Ignored:
 For exFAT/FAT external disks, use the clean sync helper instead of plain copy:
 
 ```bash
-scripts/sync_clean_external.sh . /Volumes/T7/AI_Dev/X/Github.repo-to-X.threads
+scripts/sync_clean_external.sh . /Volumes/T7/AI_Dev/X/github-repo-to-x-threads
 ```
 
 It sets `COPYFILE_DISABLE=1`, excludes `.DS_Store` and `._*`, then cleans any AppleDouble files produced during the sync.
