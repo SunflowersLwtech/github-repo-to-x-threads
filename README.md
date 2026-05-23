@@ -117,7 +117,7 @@ Ignored:
 
 ## Clean External-Disk Sync
 
-For a loadable skill bundle on an external disk, install into a `skills/` folder:
+For a loadable Claude Code project/plugin bundle on an external disk:
 
 ```bash
 scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X
@@ -127,15 +127,21 @@ Expected layout:
 
 ```text
 /Volumes/T7/AI_Dev/X/
-  skills/
-    github-repo-to-x-threads/
-      SKILL.md
-      scripts/
-      references/
-  github-repo-to-x-threads.skill
+  .claude/
+    commands/
+      github-repo-to-x-threads.md
+    skills/
+      github-repo-to-x-threads/
+        SKILL.md
+        scripts/
+        references/
+  .claude-plugin/
+    plugin.json
+  commands/
+    github-repo-to-x-threads.md
 ```
 
-This matches the bundled skill layout used by OpenAI/Anthropic-style plugin folders: `<bundle-root>/skills/<skill-name>/SKILL.md`.
+Claude Code project-level discovery uses `.claude/skills/<skill-name>/SKILL.md` for `/skill-name`. The legacy project command file `.claude/commands/<skill-name>.md` is included as a fallback. Plugin-style discovery uses `.claude-plugin/plugin.json` plus `commands/<skill-name>.md`; that command points back to `.claude/skills`.
 
 For a plain folder backup, use:
 

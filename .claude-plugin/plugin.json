@@ -1,0 +1,12 @@
+{
+  "name": "github-repo-to-x-threads",
+  "version": "0.1.0",
+  "description": "Analyze GitHub repositories and produce responsible X thread posting packs with evidence review and image assets.",
+  "author": {
+    "name": "SunflowersLwtech"
+  },
+  "repository": "https://github.com/SunflowersLwtech/github-repo-to-x-threads",
+  "commands": [
+    "./commands/github-repo-to-x-threads.md"
+  ]
+}
