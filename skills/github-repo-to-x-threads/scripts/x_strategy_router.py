@@ -140,6 +140,10 @@ def learned_notes(profile: dict[str, Any], strategy_id: str) -> list[str]:
     strategies = profile.get("strategies") or {}
     item = strategies.get(strategy_id) or {}
     notes = []
+    guidance = profile.get("evolution_guidance") if isinstance(profile.get("evolution_guidance"), dict) else {}
+    for rule in guidance.get("active_rules") or []:
+        if rule:
+            notes.append(f"Skill evolution guidance: {rule}")
     if item.get("runs"):
         notes.append(
             f"Local strategy memory: {strategy_id} has {item.get('runs')} recorded run(s), "
@@ -147,6 +151,8 @@ def learned_notes(profile: dict[str, Any], strategy_id: str) -> list[str]:
         )
     lessons = item.get("lessons") or []
     notes.extend(str(lesson) for lesson in lessons[-3:])
+    global_lessons = profile.get("global_lessons") or []
+    notes.extend(str(lesson) for lesson in global_lessons[-2:])
     return notes
 
 

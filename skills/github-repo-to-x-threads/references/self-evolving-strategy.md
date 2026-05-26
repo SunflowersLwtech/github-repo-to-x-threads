@@ -91,6 +91,22 @@ repo-to-x-workspace/strategy-memory/strategy_profile.json
 
 These files are intentionally local and ignored by git.
 
+## Skill Evolution Report
+
+When the question is not just "which strategy should this one post use" but
+"how should the skill improve after a batch of runs", run:
+
+```bash
+python -B <skill-dir>/scripts/x_skill_evolution.py \
+  --runs-root repo-to-x-workspace/runs \
+  --memory-root repo-to-x-workspace/strategy-memory
+```
+
+This produces an auditable signal ledger, aggregate report, and patch plan under
+`repo-to-x-workspace/skill-evolution/<run-id>/`. Add `--apply-profile` only to
+store proposed local routing rules in `strategy_profile.json`; do not use it as
+permission to auto-edit canonical skill files.
+
 ## What The Agent Should Learn
 
 Use the profile as a bias, not a law:

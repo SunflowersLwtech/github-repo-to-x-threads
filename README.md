@@ -37,7 +37,8 @@ Given one or more GitHub repos, owner/repo strings, local paths, arXiv/alphaXiv 
 6. create a final-mile posting pack with image placement and alt text,
 7. generate and govern GPT Image 2-style assets through a local image registry by default,
 8. optionally publish the approved pack through the official X API from the CLI,
-9. record outcomes into local strategy memory so later posts can improve.
+9. record outcomes into local strategy memory so later posts can improve,
+10. synthesize eval/publish/experiment signals into an auditable skill-evolution report and patch plan.
 
 ## Install For Local Use
 
@@ -189,6 +190,31 @@ repo-to-x-workspace/strategy-memory/strategy_profile.json
 ```
 
 Future `x_strategy_router.py` runs read this profile and surface learned notes. The memory biases strategy selection; it does not replace evidence checks or authorize unsupported public claims.
+
+For a broader self-evolution pass across evals, live publish logs, recorded
+outcomes, and Trending experiments:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_skill_evolution.py \
+  --runs-root repo-to-x-workspace/runs \
+  --memory-root repo-to-x-workspace/strategy-memory \
+  --run-id review_latest
+```
+
+This writes:
+
+```text
+repo-to-x-workspace/skill-evolution/<run-id>/
+  signal_ledger.json
+  skill_evolution_summary.json
+  skill_evolution_report.md
+  skill_patch_plan.md
+```
+
+Add `--apply-profile` only when you want the proposed rules stored in ignored
+local `strategy_profile.json` as routing guidance. The script never edits
+`SKILL.md` or public claims automatically; turn `skill_patch_plan.md` into a
+reviewed code/doc change with a regression eval.
 
 ## X Eval Agent
 

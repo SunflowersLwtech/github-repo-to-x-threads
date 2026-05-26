@@ -72,6 +72,12 @@
       "prompt": "从 GitHub Trending 拉 10 个仓库，多试几轮，不在乎 token，先试再收敛。不要默认 clone 巨型 repo，先快速筛选。",
       "expected_output": "Runs or references x_trending_experiment.py with --metadata-only for a fast text-only screen, generates governed per-repo artifacts, evaluates multiple rounds with --text-only-eval, accepts tournament rewrites only when scores improve, writes trending_experiment_results.json and trending_experiment_report.md, summarizes common failure modes, and recommends deep clone/image generation only for selected candidates.",
       "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "把最近这些 eval、Trending 实验、live publish 结果都汇总一下，搭建一套 skill 自进化体系：以后能生成改进报告、patch plan，并让 router 读到经过 review 的本地演化规则。",
+      "expected_output": "Runs or references x_skill_evolution.py, reads post_eval.json, x_publish_log.json, post_outcome.json, strategy-memory, and trending_experiment_results.json when present, writes signal_ledger.json, skill_evolution_summary.json, skill_evolution_report.md, and skill_patch_plan.md under repo-to-x-workspace/skill-evolution/<run-id>/, uses --apply-profile only for ignored local routing guidance, and clearly states that canonical SKILL.md/scripts are changed only after human review and regression evals.",
+      "files": []
     }
   ]
 }
