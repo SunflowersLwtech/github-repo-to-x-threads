@@ -1,6 +1,6 @@
 ---
 name: github-repo-to-x-threads
-description: Use this skill whenever the user gives a GitHub repository URL, owner/repo string, or local repo path and asks to analyze it for an X/Twitter post, thread, launch/share post, responsible developer recommendation, project writeup, or social media copy. This skill clones or reads the repo, cross-checks local code/docs with live GitHub metadata, separates verified facts from inference and personal vision, drafts responsible X threads, and prepares or generates GPT Image 2 / image-generation-style visual assets for posting.
+description: Use this skill whenever the user gives any technical input and wants an X/Twitter post, thread, article, launch/share post, responsible recommendation, project/paper writeup, or social media copy. Inputs can be GitHub repositories, owner/repo strings, local paths, arXiv/alphaXiv papers, blog/docs URLs, PDFs/notes, source lists, existing posting packs, or raw ideas. This skill routes the input to a posting strategy, collects evidence, separates verified facts from inference and user vision, drafts responsible X copy, generates GPT Image 2 visual assets by default, optionally publishes through the official X API, and records outcomes into local strategy memory so future posts improve.
 ---
 
 # GitHub Repo to X Threads
@@ -18,27 +18,70 @@ Use this skill when the user asks things like:
 - "帮我把 repo + 我的 vision 组织成 thread"
 - "这个项目不是我的，只是分享，别写成官方口吻"
 - "一次处理多个 repo，统一落盘和 review"
+- "把这篇 paper 发成 X thread"
+- "这个链接/PDF/笔记帮我决定怎么发 X"
+- "根据任何输入自动决定发帖策略"
+- "记录这次发帖效果，下次变强"
 
 ## Inputs To Resolve
 
 Infer these from the prompt when possible. Ask only if the missing answer would cause a misleading post.
 
-- **Repo source**: one or more GitHub URLs, `owner/repo` strings, local paths, or a source-list file.
+- **Source/input**: one or more GitHub URLs, `owner/repo` strings, local paths, arXiv/alphaXiv papers, web URLs, PDFs/notes, existing posting packs, raw ideas, or a source-list file.
 - **User relationship to the repo**: default to `independent sharer` unless the user clearly says they are the author, maintainer, contributor, or company/team member.
 - **Posting language**: match the user's language; for Chinese prompts, write Chinese by default with technical English terms where natural.
 - **User angle**: optional personal vision, use case, comparison, build plan, demo plan, or critique.
 - **Output size**: adaptive. Use as many posts as the repo evidence and user angle genuinely need. Prefer a concise 4-8 post thread for simple repos, 8-12 for rich repos or repo+vision posts, and split further only when nuance, caveats, or evidence would otherwise be lost. Do not force exactly 8 posts.
 - **Visuals**: default to 1-3 actual generated images for final posting packs. Use GPT Image 2 or the available built-in image generation tool unless the user explicitly says text-only, no images, prompts-only, or manual images. Do not require the user to separately ask for generated assets after they invoked this skill.
 - **Final-mile preference**: default to a paste-ready posting pack, not a prose-only critique. The user should be able to publish with minimal manual cleanup.
-- **Publish mode**: default to `manual-safe`. Use `official-api-publish` only when the user explicitly wants CLI posting and has configured official X API user credentials. Never default to cookie/session/proxy-based posting services.
+- **Publish mode**: default to `manual-safe`. Use `official-api-publish` only when the user explicitly wants CLI posting/uploading and has configured official X API user credentials. Never default to cookie/session/proxy-based posting services.
+- **Evolution mode**: default to `record-and-suggest`. Improve future strategy through local strategy memory, but do not silently rewrite claims or skill instructions after one successful post.
 
 ## Core Workflow
 
 In command examples, `<skill-dir>` means the directory that contains this `SKILL.md`. Resolve relative paths from this skill directory before running bundled scripts.
 
-### 1. Collect Repo Evidence
+### 0. Route Any Input To A Strategy
 
-Do not write the thread from memory or from the repo name alone.
+Do this first whenever the input is not clearly a single GitHub/local repo, or whenever the user asks for adaptive strategy, publishing, or self-improvement.
+
+Use the router:
+
+```bash
+python -B <skill-dir>/scripts/x_strategy_router.py <source-or-input> \
+  --prompt "<full user request>"
+```
+
+For a governed arbitrary-input workspace:
+
+```bash
+python -B <skill-dir>/scripts/run_any_to_x_pack.py <source-or-input> \
+  --prompt "<full user request>" \
+  --run-id <stable-run-id>
+```
+
+The router writes or returns a `strategy_decision.json` shape with:
+
+- source classification,
+- selected strategy,
+- evidence plan,
+- image policy,
+- thread shape,
+- learned notes from local strategy memory.
+
+Read `references/self-evolving-strategy.md` when the user wants "any input", adaptive strategy, self-evolving behavior, postmortem feedback, or a reusable posting system.
+
+Input routing rules:
+
+- GitHub URL / `owner/repo` / local repo -> use repo evidence workflow below.
+- arXiv or alphaXiv -> paper-share workflow: read metadata and PDF text, search for official code before claiming code availability.
+- Web URL -> page-evidence workflow: browse/open the page, collect public facts, and avoid over-quoting.
+- Existing run/posting pack -> publish/review workflow: re-run cross-check and image gates before live publish.
+- Raw idea -> research-first workflow: turn the idea into source questions; do not publish factual claims without evidence.
+
+### 1. Collect Evidence
+
+Do not write the thread from memory, source title, repo name, or URL alone.
 
 For multi-repo or durable work, create a governed run workspace first:
 
@@ -47,6 +90,8 @@ python -B <skill-dir>/scripts/run_repo_to_x_pack.py <repo-or-path> [more repos..
 ```
 
 This writes all generated artifacts under `repo-to-x-workspace/runs/<run-id>/`, which is ignored by git. Use this as the user's accessible source of truth for the run.
+
+For arbitrary non-repo inputs, use `run_any_to_x_pack.py` to create the same governed surface, then collect evidence into the generated `repo_context.json` / `source_context.json`.
 
 Run workspace layout:
 
@@ -93,7 +138,15 @@ Minimum evidence to collect:
 - Examples, demos, docs, screenshots, papers, or benchmark files if present.
 - GitHub metadata: description, stars, forks, topics, license, default branch, latest release, pushed/updated times, homepage, archived/fork status.
 
-If a metadata source fails, state that it was unavailable. Do not invent stars, maintainers, releases, affiliations, benchmarks, or roadmap items.
+For paper/web/file inputs, collect the equivalent source evidence:
+
+- title, authors/organization, publication/update date, and canonical URL,
+- PDF/page text or local file content,
+- linked code/data/project pages if present,
+- source-specific caveats, such as no official code found or page content unavailable,
+- any live metadata that matters and is safe to verify.
+
+If a metadata source fails, state that it was unavailable. Do not invent stars, maintainers, releases, affiliations, benchmarks, code availability, paper results, or roadmap items.
 
 For one-off single repo work, the lighter helper is acceptable. For anything involving multiple repos, comparison, repeatability, review, generated images, or final posting packs, use `run_repo_to_x_pack.py`.
 
@@ -146,9 +199,13 @@ Choose one strategy and state it briefly before the draft.
 Good default strategies:
 
 - **Independent technical share**: best when the repo is not the user's.
+- **Paper share**: best when the source is arXiv/alphaXiv or another research paper.
+- **Research-backed post**: best when the source is a blog/docs URL, PDF, notes, or raw idea.
 - **Repo + personal vision**: best when the user wants to use the repo as a jumping-off point for their own thinking.
 - **Launch thread**: best when the user owns the repo or is releasing a project.
 - **Builder notes**: best when the user tested or read the repo and wants to share practical lessons.
+- **Comparison / roundup**: best when there are multiple sources or the user wants a candidate pool.
+- **Publish existing pack**: best when the user says "上传/发布" and a reviewed `posting_pack.md` already exists.
 
 For the user's common target style, prefer:
 
@@ -188,6 +245,24 @@ Avoid:
 - Fake certainty about project maturity.
 - Hidden affiliation.
 - Asking people to contribute to a project the user does not own.
+
+Before locking the draft, do an angle pass:
+
+- Find the one thesis a technical reader would remember or repeat.
+- Prefer one sharp "not X, but Y" or "if the system is used this way, the training objective changes" frame over a complete source summary.
+- Generate at least 2-3 materially different angles when the input is rich, unfamiliar, or publication-bound.
+- Cut generic openers such as "recently saw", "worth reading", "interesting repo/paper", unless the rest of the hook is unusually strong.
+- If the result reads like a paper abstract or README split into numbered posts, it is not ready even if the claims are safe.
+
+When Grok is configured and the user complains about quality, rigidity, taste, or weak hooks, run a draft tournament before publishing:
+
+```bash
+python -B <skill-dir>/scripts/x_draft_tournament.py <repo-run-dir> \
+  --prompt "User taste feedback or desired style" \
+  --write-proposed-pack
+```
+
+This writes `draft_tournament.json`, `draft_tournament.md`, and optionally `posting_pack.proposed.md`. Treat the proposed pack as a candidate, not as publish-approved. Re-run claim, image, and eval gates before live publish.
 
 ### 6. Build The Final-Mile Posting Pack
 
@@ -445,6 +520,145 @@ git status --short --ignored
 git diff --cached --check
 rg -n --hidden --glob '!.env' --glob '!.git/**' '(g[h]p_|g[h]o_|github_[p]at_|BEGIN [A-Z ]{0,30}PRIVATE KEY)' . || true
 ```
+
+### 11. Self-Evolving Strategy Loop
+
+Use this loop when the user wants the skill to get better over time, when publishing is completed, or when feedback/metrics are available.
+
+1. Before drafting, run or create `strategy_decision.json` with `x_strategy_router.py` or `run_any_to_x_pack.py`.
+2. During drafting, follow the strategy but keep claim safety above learned preferences.
+3. After review or live publish, record the outcome:
+
+```bash
+python -B <skill-dir>/scripts/record_post_outcome.py <repo-run-dir> \
+  --manual-quality 0.8 \
+  --lesson "Reusable lesson from this run."
+```
+
+4. If X metrics are available, record them instead of guessing:
+
+```bash
+python -B <skill-dir>/scripts/record_post_outcome.py <repo-run-dir> \
+  --impressions 10000 \
+  --likes 120 \
+  --reposts 18 \
+  --replies 9 \
+  --bookmarks 35 \
+  --lesson "Reusable lesson from this run."
+```
+
+The outcome recorder writes local ignored memory under:
+
+```text
+repo-to-x-workspace/strategy-memory/outcomes.jsonl
+repo-to-x-workspace/strategy-memory/strategy_profile.json
+```
+
+Use local strategy memory as a bias for future strategy selection. Do not treat engagement as proof that a claim was true, and do not silently insert performance-driven rules into the canonical skill without explicit review.
+
+### 12. X Eval Agent
+
+Use the X eval agent when the user asks whether a post is strong, algorithm-friendly, likely to perform, safe to publish, or when they provide Grok/API access for automatic scoring.
+
+Read `references/x-eval-rubric.md` for the scoring contract. The evaluator is an approximation, not the real X ranking oracle.
+
+Before publishing a final pack, run:
+
+```bash
+python -B <skill-dir>/scripts/x_eval_post.py <repo-run-dir>
+```
+
+This reads:
+
+- `posting_pack.md`,
+- `claims_ledger.json`,
+- `cross_check_review.md`,
+- `images_manifest.json`,
+- optional `strategy_decision.json`,
+- optional `GROK_API_KEY` / `GROK_MODEL` from `.env`.
+
+It writes:
+
+```text
+post_eval.json
+x_eval_report.md
+```
+
+If `GROK_API_KEY` is available, Grok is used as the semantic evaluator. If not, the script falls back to deterministic rubric scoring. Treat Grok as a reviewer, not as evidence.
+
+If the evaluator returns `revise` because of `angle_freshness`, `specificity_density`, or `voice_authenticity`, run `x_draft_tournament.py` instead of only trimming text. A safe but forgettable thread should be rewritten around a stronger angle.
+
+After publishing, collect metrics:
+
+```bash
+python -B <skill-dir>/scripts/x_collect_metrics.py <repo-run-dir>
+```
+
+Then calibrate strategy memory:
+
+```bash
+python -B <skill-dir>/scripts/x_calibrate_strategy.py <repo-run-dir> \
+  --lesson "Reusable lesson from this post."
+```
+
+Publish gate recommendation:
+
+- `post_eval.json` decision should be `ready`, or the user explicitly approves publishing despite `revise`.
+- `claim_safety` must stay above the threshold in `x-eval-rubric.md`.
+- `cross_check_review.md` and image gates still matter more than a high Grok score.
+- Never optimize for engagement by weakening attribution, source boundaries, or generated-image disclosure.
+
+### 13. Trending Repo Experiments
+
+Use this when the user wants to pull from GitHub Trending, try many repos, burn tokens, benchmark quality, or converge the skill's strategy.
+
+Default to a two-stage funnel:
+
+1. **Fast text-only screen**: pull current GitHub Trending, fetch GitHub metadata + README only, generate copy, run text-only eval, and run tournaments. Do not clone large repos or generate images yet.
+2. **Deep publish prep**: only for candidates that survive the screen or the user selects, clone/read the repo deeply, verify claims, generate actual images, and run publish gates.
+
+Run the fast screen:
+
+```bash
+python -B <skill-dir>/scripts/x_trending_experiment.py \
+  --limit 10 \
+  --rounds 3 \
+  --since daily \
+  --metadata-only
+```
+
+Use deep clone mode only for a small candidate set:
+
+```bash
+python -B <skill-dir>/scripts/x_trending_experiment.py \
+  --limit 3 \
+  --rounds 3 \
+  --since daily \
+  --refresh
+```
+
+The experiment writes:
+
+```text
+repo-to-x-workspace/runs/<run-id>/
+  trending_sources.txt
+  trending_experiment_results.json
+  trending_experiment_report.md
+  repos/<owner__repo>/
+    posting_pack_round1.md
+    posting_pack_round2.md
+    posting_pack_round3.md
+    experiment_eval_round*.json
+```
+
+Experiment rules:
+
+- Use `--text-only-eval` during early screening; ignore image/media feedback until publish prep.
+- Accept a tournament rewrite only if its eval score improves over the current accepted draft.
+- If no candidate crosses the ready threshold, do not force publish. Treat the common fixes as strategy feedback.
+- Common failure modes to watch: no repeatable thesis, generic repo-note opener, too much README summary, too little concrete example, missing caveat, and mixed-language voice drift.
+- For globally trending developer repos, a short English or bilingual hook can improve reach, but keep the thread voice coherent.
+- After the experiment, write reusable lessons into strategy memory or skill instructions; do not mutate factual claims based on engagement predictions.
 
 ## Quality Bar
 

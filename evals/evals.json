@@ -42,6 +42,36 @@
       "prompt": "colbymchenry/codegraph 帮我做成可直接发 X 的 posting pack。",
       "expected_output": "Does not say images were skipped because the user did not explicitly request generated assets. Uses adaptive thread length rather than forcing exactly 8 posts, generates at least one actual image with the native image generation path when available, registers the generated file under images_manifest.json, runs scripts/check_image_assets.py before saying Ready To Post, and only uses prompt-only if the user opted out or the image tool is unavailable.",
       "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "https://www.alphaxiv.org/abs/2605.22817 这不是 repo，但我也想用同一套系统决定策略、生成中文 X thread、配图并准备发布。",
+      "expected_output": "Routes the alphaXiv URL as a paper input, creates or references a governed arbitrary-input workspace with strategy_decision.json, reads paper metadata/PDF evidence before drafting, searches or caveats official code availability, uses paper-share framing, generates actual GPT Image 2 conceptual visuals by default, and preserves independent-share attribution.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "以后每次发完都帮我记录效果，让这个 skill 下次自动根据输入决定更好的 X 发帖策略。先给这个已发布 posting pack 记录一次复盘：质量 0.85，lesson 是 paper thread 的 hook 要直接讲清楚 caveat。",
+      "expected_output": "Uses record_post_outcome.py or an equivalent governed postmortem path, writes post_outcome.json in the run directory, appends local ignored strategy-memory/outcomes.jsonl, updates strategy_profile.json, and explains that strategy memory biases future routing but does not override evidence or silently mutate public claims.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "GROK_API_KEY 和 X OAuth 都在 .env 了。给这个 posting pack 做发布前自动打分，发布后拉 X metrics，并把结果校准进 strategy memory。",
+      "expected_output": "Runs or references x_eval_post.py to produce post_eval.json and x_eval_report.md, uses Grok only as a semantic reviewer rather than source evidence, runs or references x_collect_metrics.py against x_publish_log.json tweet ids, runs or references x_calibrate_strategy.py to update strategy_profile.json, and clearly separates pre-publish predicted score from post-publish observed metrics.",
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "我觉得现在的 skills 太死了，发出去的质量直观感觉也不怎么样。不要只给安全摘要，帮我把这个 posting pack 变成更有角度、更像真人技术判断的版本。",
+      "expected_output": "Treats the feedback as a quality signal, does not defend the old rubric, runs or references x_draft_tournament.py to produce draft_tournament.json/draft_tournament.md and a candidate posting_pack.proposed.md, revises the eval gate so angle_freshness/specificity_density/voice_authenticity can force revise, records the qualitative lesson into strategy memory, and makes clear that the proposed rewrite still needs claim/image/eval gates before live publish.",
+      "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "从 GitHub Trending 拉 10 个仓库，多试几轮，不在乎 token，先试再收敛。不要默认 clone 巨型 repo，先快速筛选。",
+      "expected_output": "Runs or references x_trending_experiment.py with --metadata-only for a fast text-only screen, generates governed per-repo artifacts, evaluates multiple rounds with --text-only-eval, accepts tournament rewrites only when scores improve, writes trending_experiment_results.json and trending_experiment_report.md, summarizes common failure modes, and recommends deep clone/image generation only for selected candidates.",
+      "files": []
     }
   ]
 }

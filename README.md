@@ -1,6 +1,6 @@
 # github-repo-to-x-threads
 
-Agent Skills plugin for turning GitHub repositories into responsible X/Twitter thread posting packs.
+Agent Skills plugin for turning GitHub repositories and other technical inputs into responsible X/Twitter posting packs.
 
 The canonical skill is agent-neutral:
 
@@ -23,32 +23,34 @@ Do not install this project by copying the whole repository into `.claude/skills
 
 ## Coding Agent One-Line Config
 
-Coding agents should treat `AGENTS.md` plus `skills/github-repo-to-x-threads/SKILL.md` as the source of truth, keep generated runs/images/env files out of git, and use `scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X` only to sync local install surfaces.
+Coding agents should treat `AGENTS.md` plus `skills/github-repo-to-x-threads/SKILL.md` as the source of truth, keep generated runs/images/env files out of git, and use `scripts/install_skill_bundle.sh /Users/sunfl/Documents/media/X` only to sync local install surfaces.
 
 ## What It Does
 
-Given one or more GitHub repos, owner/repo strings, or local paths, the skill guides an agent to:
+Given one or more GitHub repos, owner/repo strings, local paths, arXiv/alphaXiv papers, web URLs, PDFs/notes, existing posting packs, or raw ideas, the skill guides an agent to:
 
-1. clone or read the repo locally,
-2. cross-check repo files against live GitHub metadata,
-3. separate verified facts, reasonable inference, and user vision,
-4. draft a paste-ready X thread with attribution and caveats,
-5. create a final-mile posting pack with image placement and alt text,
-6. generate and govern GPT Image 2-style assets through a local image registry by default,
-7. optionally publish the approved pack through the official X API from the CLI.
+1. classify the input and choose a posting strategy,
+2. clone/read repos or collect source-specific evidence for papers, pages, files, and ideas,
+3. cross-check evidence against live metadata when available,
+4. separate verified facts, reasonable inference, and user vision,
+5. draft a paste-ready X thread/article with attribution and caveats,
+6. create a final-mile posting pack with image placement and alt text,
+7. generate and govern GPT Image 2-style assets through a local image registry by default,
+8. optionally publish the approved pack through the official X API from the CLI,
+9. record outcomes into local strategy memory so later posts can improve.
 
 ## Install For Local Use
 
 The helper installs the canonical skill plus local adapters without committing generated outputs:
 
 ```bash
-scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X
+scripts/install_skill_bundle.sh /Users/sunfl/Documents/media/X
 ```
 
 It writes:
 
 ```text
-/Volumes/T7/AI_Dev/X/
+/Users/sunfl/Documents/media/X/
   skills/github-repo-to-x-threads/      # canonical plugin skill
   .codex-plugin/plugin.json             # Codex plugin manifest
   .claude-plugin/plugin.json            # Claude plugin manifest
@@ -116,6 +118,160 @@ Each repo gets:
 - `repo/` when the source is remote
 
 `repo-to-x-workspace/` is ignored by git. It is the local, accessible place for cloned repos, generated images, drafts, review notes, and final posting packs.
+
+## Any Input Strategy Runs
+
+For non-repo or strategy-first inputs, start with the router:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_strategy_router.py \
+  "https://www.alphaxiv.org/abs/2605.22817" \
+  --prompt "帮我决定策略并发成中文 X thread"
+```
+
+For a governed workspace:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/run_any_to_x_pack.py \
+  "https://www.alphaxiv.org/abs/2605.22817" \
+  --prompt "帮我决定策略并发成中文 X thread" \
+  --run-id vpo-paper-share
+```
+
+This creates:
+
+```text
+repo-to-x-workspace/runs/<run-id>/
+  strategy_decision.json
+  run_manifest.json
+  SUMMARY.md
+  repos/<source-id>/
+    repo_context.json
+    source_context.json
+    claims_ledger.json
+    cross_check_review.md
+    posting_pack.md
+    images_manifest.json
+    images/
+```
+
+Use `run_repo_to_x_pack.py` for deep GitHub repo collection. Use `run_any_to_x_pack.py` when the source can be a paper, web URL, PDF, existing pack, or raw idea.
+
+## Self-Evolving Strategy Memory
+
+After review or live publish, record the result:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/record_post_outcome.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<source-id> \
+  --manual-quality 0.8 \
+  --lesson "The strongest posts used a direct caveat in the hook."
+```
+
+When real X metrics are available:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/record_post_outcome.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<source-id> \
+  --impressions 10000 \
+  --likes 120 \
+  --reposts 18 \
+  --replies 9 \
+  --bookmarks 35 \
+  --lesson "Architecture images worked better than generic hero images."
+```
+
+This writes ignored local memory:
+
+```text
+repo-to-x-workspace/strategy-memory/outcomes.jsonl
+repo-to-x-workspace/strategy-memory/strategy_profile.json
+```
+
+Future `x_strategy_router.py` runs read this profile and surface learned notes. The memory biases strategy selection; it does not replace evidence checks or authorize unsupported public claims.
+
+## X Eval Agent
+
+Use Grok plus deterministic checks to score a posting pack before publishing:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_eval_post.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<source-id>
+```
+
+It writes:
+
+```text
+post_eval.json
+x_eval_report.md
+```
+
+If `GROK_API_KEY` is present in the local ignored `.env`, Grok provides semantic scores and suggestions. Without Grok, the script falls back to deterministic rubric checks.
+
+The evaluator is intentionally strict on editorial quality. It now scores:
+
+- `angle_freshness`
+- `specificity_density`
+- `voice_authenticity`
+
+A safe summary can still be marked `revise` if it feels rigid or generic.
+
+When a draft feels weak, run a Grok draft tournament:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_draft_tournament.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<source-id> \
+  --prompt "User says the current skill is too rigid and quality is not good" \
+  --write-proposed-pack
+```
+
+It writes:
+
+```text
+draft_tournament.json
+draft_tournament.md
+posting_pack.proposed.md
+```
+
+Use the proposed pack as a candidate, then re-run claim/image/eval gates before publishing.
+
+After publishing, collect X metrics and calibrate strategy memory:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_collect_metrics.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<source-id>
+
+python -B skills/github-repo-to-x-threads/scripts/x_calibrate_strategy.py \
+  repo-to-x-workspace/runs/<run-id>/repos/<source-id> \
+  --lesson "Architecture images beat generic hero images for this audience."
+```
+
+## Trending Experiments
+
+For broad testing, pull current GitHub Trending and run multi-round text-only evals before spending time on deep clones or images:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_trending_experiment.py \
+  --limit 10 \
+  --rounds 3 \
+  --since daily \
+  --metadata-only \
+  --run-id trending_daily_metadata
+```
+
+This writes `trending_experiment_results.json` and `trending_experiment_report.md` under the run directory. The script only accepts a tournament rewrite when it scores better than the current draft.
+
+Use deep clone mode only after a repo survives the fast screen:
+
+```bash
+python -B skills/github-repo-to-x-threads/scripts/x_trending_experiment.py \
+  --limit 3 \
+  --rounds 3 \
+  --since daily \
+  --refresh
+```
+
+The evaluator is not a real X ranking oracle. It combines local posting-pack gates, approximate recommendation-system heuristics, Grok semantic review, and the user's own historical outcomes.
 
 ## Image Governance
 
@@ -212,10 +368,10 @@ The publisher uploads registered images, attempts to set alt text, marks generat
 
 Do not use cookie replay, website automation, hidden GraphQL calls, `auth_session` services, or proxy-based third-party posting as this project's default path.
 
-When using an external bundle such as `/Volumes/T7/AI_Dev/X`, you may keep local user-governed artifacts at the bundle root:
+When using an external bundle such as `/Users/sunfl/Documents/media/X`, you may keep local user-governed artifacts at the bundle root:
 
-- `/Volumes/T7/AI_Dev/X/.env`
-- `/Volumes/T7/AI_Dev/X/repo-to-x-workspace/`
+- `/Users/sunfl/Documents/media/X/.env`
+- `/Users/sunfl/Documents/media/X/repo-to-x-workspace/`
 
 The installer preserves these bundle-root paths. Do not commit `.env`, and do not place real env files or generated run workspaces under `skills/`.
 
@@ -234,6 +390,11 @@ Set one of:
 - `GITHUB_PERSONAL_ACCESS_TOKEN`
 
 For official X API publishing, set `X_CLIENT_ID` first and then run `x_oauth2_pkce_setup.py` to populate `X_OAUTH2_ACCESS_TOKEN` and `X_OAUTH2_REFRESH_TOKEN`.
+
+For Grok-based pre-publish evaluation, set:
+
+- `GROK_API_KEY`
+- `GROK_MODEL` (defaults to `grok-4.3`)
 
 `.env` files are ignored by git. Do not commit real tokens.
 

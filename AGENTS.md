@@ -18,4 +18,4 @@
 
 - Run Python syntax checks for scripts after editing.
 - Run a smoke `run_repo_to_x_pack.py` workspace creation before publishing packaging changes.
-- Run `scripts/install_skill_bundle.sh /Volumes/T7/AI_Dev/X` when validating local Claude/Codex adapters.
+- Run `scripts/install_skill_bundle.sh /Users/sunfl/Documents/media/X` when validating local Claude/Codex adapters.

@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <bundle-root>" >&2
-  echo "Example: $0 /Volumes/T7/AI_Dev/X" >&2
+  echo "Example: $0 /Users/sunfl/Documents/media/X" >&2
   exit 2
 fi
 
@@ -28,6 +28,9 @@ fi
 copy_skill() {
   local dest="$1"
   mkdir -p "$dest"
+  if [[ "$(cd "$skill_src" && pwd)" == "$(cd "$dest" && pwd)" ]]; then
+    return 0
+  fi
   COPYFILE_DISABLE=1 rsync -a --delete --delete-excluded \
     --exclude='.env' \
     --exclude='repo-to-x-workspace' \
@@ -40,6 +43,16 @@ copy_skill() {
     "$skill_src/" "$dest/"
 }
 
+copy_file_if_different() {
+  local src="$1"
+  local dest="$2"
+  mkdir -p "$(dirname "$dest")"
+  if [[ -e "$dest" ]] && [[ "$(cd "$(dirname "$src")" && pwd)/$(basename "$src")" == "$(cd "$(dirname "$dest")" && pwd)/$(basename "$dest")" ]]; then
+    return 0
+  fi
+  cp "$src" "$dest"
+}
+
 mkdir -p \
   "$bundle_root/.codex-plugin" \
   "$bundle_root/.claude-plugin" \
@@ -50,12 +63,12 @@ copy_skill "$canonical_skill_dir"
 copy_skill "$claude_project_skill_dir"
 copy_skill "$codex_user_skill_dir"
 
-cp "$source_root/.codex-plugin/plugin.json" "$bundle_root/.codex-plugin/plugin.json"
-cp "$source_root/.claude-plugin/plugin.json" "$bundle_root/.claude-plugin/plugin.json"
-cp "$source_root/commands/$skill_name.md" "$plugin_command_dir/$skill_name.md"
-cp "$source_root/commands/$skill_name.md" "$claude_project_command_dir/$skill_name.md"
-cp "$source_root/README.md" "$bundle_root/README.md"
-[[ -f "$source_root/AGENTS.md" ]] && cp "$source_root/AGENTS.md" "$bundle_root/AGENTS.md"
+copy_file_if_different "$source_root/.codex-plugin/plugin.json" "$bundle_root/.codex-plugin/plugin.json"
+copy_file_if_different "$source_root/.claude-plugin/plugin.json" "$bundle_root/.claude-plugin/plugin.json"
+copy_file_if_different "$source_root/commands/$skill_name.md" "$plugin_command_dir/$skill_name.md"
+copy_file_if_different "$source_root/commands/$skill_name.md" "$claude_project_command_dir/$skill_name.md"
+copy_file_if_different "$source_root/README.md" "$bundle_root/README.md"
+[[ -f "$source_root/AGENTS.md" ]] && copy_file_if_different "$source_root/AGENTS.md" "$bundle_root/AGENTS.md"
 
 rm -f "$bundle_root/$skill_name.skill"
 rm -rf "$bundle_root/.claude/skills/$skill_name/.claude" "$bundle_root/.claude/skills/$skill_name/.claude-plugin"
