@@ -21,11 +21,15 @@ from x_publish_thread import load_env, read_json  # noqa: E402
 
 
 ANGLE_CONTRACT = [
+    "Diagnose the source material before writing. A hook cannot save a source with no concrete artifact, number, contrast, reader pain, caveat, or source boundary.",
     "Generate 3-5 materially different angles before drafting; do not pick the first safe summary by default.",
     "Each angle must name a repeatable thesis, a concrete technical example, a reader pain, one caveat, and what claim would be unsafe.",
     "Favor angles of the form: not just <category>, but <mechanism> that changes <workflow constraint>.",
-    "Post 1 must make the thesis legible without the reader already knowing the repo. Do not open with a repo-note phrase.",
+    "Post 1 must work without a title, image, or link card: topic + reason to read + evidence credibility. Do not open with a repo-note phrase.",
     "Forbidden first-post patterns: 最近看到, 值得认真看, 很有意思, quick thread, this repo is, 这个项目是, 这个库是.",
+    "Use psychological triggers only when evidence supports them: cognitive conflict, curiosity gap, risk/loss, identity, or numeric anchor.",
+    "Translate high-level concepts into concrete workflow language. If you say agentic, self-evolving, paradigm, framework, or future, attach a mechanism or file path.",
+    "Avoid over-smooth AI prose: ritual transitions, perfectly balanced summaries, repeated not-X-but-Y turns, and fake certainty.",
     "Use one coherent voice. Chinese is default; English is for repo names, file paths, API names, commands, or one deliberate hook line.",
     "A publishable thread needs at least one concrete example or path/command/API name and one visible caveat or boundary.",
     "Do not put multi-line code in one tweet. Use a one-line pseudo snippet, a path, or split the example across posts.",
@@ -109,6 +113,10 @@ def call_grok(api_key: str, model: str, evidence: dict[str, Any], prompt: str, t
             "Credit the repo owner in evidence/metadata, but the public hook can lead with the technical thesis.",
             "Keep posts concise; 4-7 posts is usually enough.",
             "Post 1 must be a repeatable technical thesis or pain-point claim, not a repo description.",
+            "Before selecting an angle, score source material richness: concrete artifact, sourced number, contrast, reader pain, caveat, source boundary.",
+            "If source material is weak, say what evidence is missing instead of generating a polished but empty thread.",
+            "The hook must be independently understandable without the link preview.",
+            "A good hook should create tension without giving away the whole answer.",
             "Prefer a 4-6 post thread for trending repos: thesis, mechanism, concrete example, caveat/boundary, link/attribution.",
             "For globally trending developer repos, a short English or bilingual hook is allowed when it improves reach, but keep the rest coherent.",
             "Every public factual claim must be backed by README, package metadata, file tree, or GitHub metadata.",
@@ -118,9 +126,16 @@ def call_grok(api_key: str, model: str, evidence: dict[str, Any], prompt: str, t
             "This is a text-only experiment. Do not reference generated images in the public posts.",
             "If evidence is metadata-only, do not make source-code-internal claims unless the README itself states them.",
             "Every post must fit X length. If an example is long, compress it to the specific mechanism or split it.",
+            "Do not use ritual AI transitions such as 值得注意的是, 更重要的是, 总之, in conclusion, or it is important to note.",
         ],
         "output_schema": {
             "strategy": "string",
+            "content_diagnosis": {
+                "source_material_score": "float 0..1",
+                "hook_independence": "string",
+                "plain_language_risk": "string",
+                "anti_smoothness_notes": ["string"],
+            },
             "angle_candidates": [
                 {
                     "id": "A",
@@ -274,9 +289,29 @@ def write_pack(repo_run_dir: Path, evidence: dict[str, Any], result: dict[str, A
         "",
         str(result.get("strategy") or "Angle-first independent technical share."),
         "",
-        "## Angle Candidates",
+        "## Content Diagnosis",
         "",
     ]
+    diagnosis = result.get("content_diagnosis") if isinstance(result.get("content_diagnosis"), dict) else {}
+    if diagnosis:
+        lines.extend(
+            [
+                f"- Source material score: {diagnosis.get('source_material_score', '<unavailable>')}",
+                f"- Hook independence: {diagnosis.get('hook_independence', '')}",
+                f"- Plain-language risk: {diagnosis.get('plain_language_risk', '')}",
+            ]
+        )
+        for note in diagnosis.get("anti_smoothness_notes") or []:
+            lines.append(f"- Anti-smoothness: {note}")
+    else:
+        lines.append("- No structured diagnosis returned.")
+    lines.extend(
+        [
+            "",
+            "## Angle Candidates",
+            "",
+        ]
+    )
     for angle in result.get("angle_candidates") or []:
         details = [
             f"`{angle.get('id', '')}` {angle.get('angle', '')}",

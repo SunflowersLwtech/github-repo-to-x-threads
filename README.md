@@ -33,7 +33,7 @@ Given one or more GitHub repos, owner/repo strings, local paths, arXiv/alphaXiv 
 2. clone/read repos or collect source-specific evidence for papers, pages, files, and ideas,
 3. cross-check evidence against live metadata when available,
 4. separate verified facts, reasonable inference, and user vision,
-5. draft a paste-ready X thread/article with attribution and caveats,
+5. draft a paste-ready X thread/article with attribution, caveats, source-material richness, hook independence, and anti-template voice checks,
 6. create a final-mile posting pack with image placement and alt text,
 7. generate and govern GPT Image 2-style assets through a local image registry by default,
 8. optionally publish the approved pack through the official X API from the CLI,
@@ -65,6 +65,13 @@ It also installs one user-level Codex skill copy to:
 ~/.agents/skills/github-repo-to-x-threads/
 ```
 
+And one user-level Claude Code skill plus slash command copy to:
+
+```text
+~/.claude/skills/github-repo-to-x-threads/
+~/.claude/commands/github-repo-to-x-threads.md
+```
+
 Do not also keep this skill under `~/.codex/skills/` or the bundle's `.agents/skills/`; Codex will show duplicate entries if the same skill is present in multiple scanned locations.
 
 ## Manual Install
@@ -81,6 +88,8 @@ Claude Code personal skill location:
 ```bash
 mkdir -p ~/.claude/skills
 cp -R skills/github-repo-to-x-threads ~/.claude/skills/
+mkdir -p ~/.claude/commands
+cp commands/github-repo-to-x-threads.md ~/.claude/commands/
 ```
 
 For plugin distribution, use the repository root as the plugin folder. Codex reads `.codex-plugin/plugin.json`; Claude Code reads `.claude-plugin/plugin.json` and the root `skills/` directory.
@@ -157,6 +166,16 @@ repo-to-x-workspace/runs/<run-id>/
 ```
 
 Use `run_repo_to_x_pack.py` for deep GitHub repo collection. Use `run_any_to_x_pack.py` when the source can be a paper, web URL, PDF, existing pack, or raw idea.
+
+## Content Quality Gates
+
+When a draft is safe but feels generic, use:
+
+```text
+skills/github-repo-to-x-threads/references/content-quality-gates.md
+```
+
+The quality gate checks whether the source has enough material to justify a hook, whether post 1 works without a link card, whether the psychological trigger fits the evidence, whether high-level concepts are translated into concrete mechanisms, and whether the copy is too smooth or template-like.
 
 ## Self-Evolving Strategy Memory
 

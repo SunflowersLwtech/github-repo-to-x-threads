@@ -25,6 +25,13 @@ Use 0.0-1.0 scores.
 | `voice_authenticity` | The copy sounds like a real technical reader with taste, not a rigid generated template. |
 | `risk_control` | Low spam/template/link/controversy/downranking risk. |
 
+Additional content-quality checks:
+
+- `source_material_density`: the draft contains enough material to justify a hook: concrete artifacts, sourced numbers, before/after contrast, reader pain, and a caveat.
+- `hook_independence`: post 1 works without the link card, image, or title and makes topic + reason to read + evidence credibility legible.
+- `plain_language_conversion`: high-level concepts are translated into concrete mechanisms or workflows.
+- `anti_smoothness`: the copy avoids over-polished AI patterns, repeated balanced turns, ritual transitions, and fake certainty.
+
 Default weighted score:
 
 ```text
@@ -53,7 +60,7 @@ Recommended gates:
 - Any `voice_authenticity < 0.58`: revise.
 - Any `media_quality < 0.65` when images are required: regenerate or remove image references.
 
-The harsh rule: a safe, accurate summary is not automatically ready. If it reads like a paper abstract split into numbered tweets, it should go through draft tournament or rewrite.
+The harsh rule: a safe, accurate summary is not automatically ready. If it reads like a paper abstract split into numbered tweets, if the hook needs the link card to make sense, or if the draft has no inspectable example, it should go through draft tournament or rewrite.
 
 ## Grok Evaluation Role
 
@@ -66,6 +73,8 @@ Use Grok for semantic judgment:
 - Which post is most likely to create bookmark/reply value?
 - Which line should be cut before publishing?
 - What is the one thesis a reader would remember or repost?
+- Is there enough source material to justify the hook, or is the copy writing around an empty thesis?
+- Which high-level concept should be translated into concrete workflow language?
 
 Grok should return JSON. Treat it as a reviewer, not as evidence. If Grok says a factual claim is true, still require the claim ledger or source context.
 

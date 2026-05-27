@@ -58,7 +58,7 @@ python -B "$CLAUDE_PLUGIN_ROOT/skills/github-repo-to-x-threads/scripts/x_draft_t
   --write-proposed-pack
 ```
 
-Treat `posting_pack.proposed.md` as a candidate. Re-run claim, image, and eval gates before live publishing.
+Before rewriting, use `references/content-quality-gates.md` to check source-material richness, hook independence, psychological-trigger fit, plain-language concept conversion, and over-smooth AI prose. Treat `posting_pack.proposed.md` as a candidate. Re-run claim, image, and eval gates before live publishing.
 
 Before live publishing, prefer running:
 

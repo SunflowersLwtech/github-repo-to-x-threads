@@ -156,6 +156,11 @@ def text_features(posts: list[str]) -> dict[str, Any]:
         full,
         flags=re.I,
     )
+    ritual_transition_phrases = re.findall(
+        r"(值得注意的是|更重要的是|总之|总结一下|综上|换句话说|与此同时|不可否认|it is important to note|in conclusion|overall|more importantly|notably)",
+        full,
+        flags=re.I,
+    )
     summary_phrases = re.findall(
         r"(是一个|是个|它做的是|主要(提供|支持|包含)|提供了?|支持|内置|包含|works with|supports|includes|features|allows you to|lets you)",
         full,
@@ -187,6 +192,31 @@ def text_features(posts: list[str]) -> dict[str, Any]:
         first_body,
         flags=re.I,
     )
+    material_markers = re.findall(
+        r"(`[^`]+`|[A-Za-z0-9_.-]+\.(json|toml|ya?ml|py|ts|tsx|js|md)|/[A-Za-z0-9_.-]+|\b[A-Za-z_][A-Za-z0-9_]{2,}\(\)|\b\d+(?:\.\d+)?\s?(?:%|x|ms|s|sec|tokens?|stars?|forks?|benchmarks?|models?|files?|points?|分|条|个|次|倍|万|亿)\b|before/after|diff|trace|trajectory|verifier|gate|eval|benchmark|score|commit|issue|PR|失败|回归|对比|反例|边界)",
+        full,
+        flags=re.I,
+    )
+    first_material_markers = re.findall(
+        r"(`[^`]+`|[A-Za-z0-9_.-]+\.(json|toml|ya?ml|py|ts|tsx|js|md)|/[A-Za-z0-9_.-]+|\b[A-Za-z_][A-Za-z0-9_]{2,}\(\)|\b\d+(?:\.\d+)?\s?(?:%|x|ms|s|sec|tokens?|stars?|forks?|benchmarks?|models?|files?|points?|分|条|个|次|倍|万|亿)\b|before/after|diff|trace|trajectory|verifier|gate|eval|benchmark|score|失败|回归|对比|反例|边界)",
+        first_body,
+        flags=re.I,
+    )
+    vague_abstractions = re.findall(
+        r"(范式|生态|闭环|赋能|重塑|颠覆|革命性|底层逻辑|未来已来|改变一切|降维打击|本质上|归根结底|终局|红利|paradigm|ecosystem|revolutionary|transformative|future of|game[- ]changer)",
+        full,
+        flags=re.I,
+    )
+    high_concepts = re.findall(
+        r"(agentic|self[- ]evolving|autonomous|framework|方法论|智能体|自进化|范式|系统)",
+        full,
+        flags=re.I,
+    )
+    hook_tension_markers = re.findall(
+        r"(为什么|怎么会|问题不是|真正的问题|不是.{0,36}而是|not .{0,48} but|instead of|rather than|反常识|误区|风险|代价|坑|footgun|constraint|trade[- ]off|vs\.?|对比|反而|悬念)",
+        first_body,
+        flags=re.I,
+    )
     cjk_chars = len(re.findall(r"[\u4e00-\u9fff]", full))
     english_function_words = re.findall(
         r"\b(the|and|for|with|without|this|that|why|how|what|but|not|just|because|into|from|to|of|in|on)\b",
@@ -194,6 +224,8 @@ def text_features(posts: list[str]) -> dict[str, Any]:
         flags=re.I,
     )
     voice_drift = cjk_chars > 40 and len(english_function_words) > max(5, len(posts) * 2)
+    plain_language_gap = len(high_concepts) > 2 and len(material_markers) < max(2, len(high_concepts) // 2)
+    ai_smoothness_count = len(ritual_transition_phrases) + max(0, len(thesis_markers) - 2) + int(plain_language_gap)
     total_chars = sum(lengths)
     return {
         "post_count": len(posts),
@@ -213,8 +245,16 @@ def text_features(posts: list[str]) -> dict[str, Any]:
         "generic_opener_count": len(generic_openers),
         "repo_note_opener_count": len(repo_note_openers),
         "template_phrase_count": len(template_phrases),
+        "ritual_transition_count": len(ritual_transition_phrases),
         "summary_phrase_count": len(summary_phrases),
         "concrete_marker_count": len(concrete_markers),
+        "material_marker_count": len(material_markers),
+        "first_material_marker_count": len(first_material_markers),
+        "vague_abstraction_count": len(vague_abstractions),
+        "high_concept_count": len(high_concepts),
+        "plain_language_gap_count": int(plain_language_gap),
+        "hook_tension_marker_count": len(hook_tension_markers),
+        "ai_smoothness_count": ai_smoothness_count,
         "contrast_marker_count": len(contrast_markers),
         "thesis_marker_count": len(thesis_markers),
         "first_thesis_marker_count": len(first_thesis_markers),
@@ -257,6 +297,10 @@ def deterministic_scores(
         hook_strength += 0.14
     if features["first_example_marker_count"] > 0:
         hook_strength += 0.07
+    if features["first_material_marker_count"] > 0:
+        hook_strength += 0.06
+    if features["hook_tension_marker_count"] > 0:
+        hook_strength += 0.07
     if features["caveat_count"] > 0:
         hook_strength += 0.03
     if re.search(r"值得|interesting|why|核心|问题|takeaway|不是|but|however", posts[0] if posts else "", flags=re.I):
@@ -267,6 +311,8 @@ def deterministic_scores(
         hook_strength -= 0.12
     if features["summary_phrase_count"] >= max(3, features["post_count"]):
         hook_strength -= 0.08
+    if features["ai_smoothness_count"] > 3:
+        hook_strength -= 0.05
     if features["first_body_chars"] < 70 and not features["first_thesis_marker_count"]:
         hook_strength -= 0.08
     if features["ai_slop_count"]:
@@ -281,6 +327,10 @@ def deterministic_scores(
         angle_freshness += 0.06
     if features["example_marker_count"] > 0:
         angle_freshness += 0.08
+    if features["hook_tension_marker_count"] > 0:
+        angle_freshness += 0.07
+    if features["material_marker_count"] >= max(3, features["post_count"] // 2):
+        angle_freshness += 0.06
     if features["concrete_marker_count"] >= max(6, features["post_count"]):
         angle_freshness += 0.12
     if features["generic_opener_count"]:
@@ -291,6 +341,8 @@ def deterministic_scores(
         angle_freshness -= 0.12
     if features["template_phrase_count"] > 2:
         angle_freshness -= min(0.22, features["template_phrase_count"] * 0.04)
+    if features["vague_abstraction_count"] > 2 and features["material_marker_count"] < 3:
+        angle_freshness -= 0.12
 
     audience_fit = 0.58
     if re.search(r"\b(repo|paper|api|model|rl|agent|benchmark|代码|论文|开源|训练|搜索)\b", "\n".join(posts), flags=re.I):
@@ -301,6 +353,7 @@ def deterministic_scores(
     specificity_density = 0.45
     specificity_density += min(0.28, features["concrete_marker_count"] * 0.018)
     specificity_density += min(0.14, features["example_marker_count"] * 0.035)
+    specificity_density += min(0.16, features["material_marker_count"] * 0.025)
     if features["url_count"]:
         specificity_density += 0.04
     if features["template_phrase_count"] > 3:
@@ -311,6 +364,8 @@ def deterministic_scores(
         bookmark_value += 0.1
     if features["thesis_marker_count"] > 0 and features["example_marker_count"] > 0:
         bookmark_value += 0.10
+    if features["material_marker_count"] >= 3 and features["hook_tension_marker_count"]:
+        bookmark_value += 0.08
     if re.search(r"\b(pattern|workflow|checklist|架构|方法|takeaway|结论|路径|rubric)\b", "\n".join(posts), flags=re.I):
         bookmark_value += 0.22
 
@@ -347,6 +402,10 @@ def deterministic_scores(
     voice_authenticity = 0.62
     if features["template_phrase_count"]:
         voice_authenticity -= min(0.30, features["template_phrase_count"] * 0.045)
+    if features["ritual_transition_count"]:
+        voice_authenticity -= min(0.18, features["ritual_transition_count"] * 0.04)
+    if features["ai_smoothness_count"] > 3:
+        voice_authenticity -= min(0.18, (features["ai_smoothness_count"] - 3) * 0.035)
     if features["generic_opener_count"]:
         voice_authenticity -= 0.12
     if features["repo_note_opener_count"]:
@@ -355,6 +414,10 @@ def deterministic_scores(
         voice_authenticity -= 0.10
     if features["voice_drift_count"]:
         voice_authenticity -= 0.10
+    if features["plain_language_gap_count"]:
+        voice_authenticity -= 0.10
+    if features["vague_abstraction_count"] > 3:
+        voice_authenticity -= 0.08
     if features["caveat_count"] and features["concrete_marker_count"] >= 6:
         voice_authenticity += 0.10
     if features["first_thesis_marker_count"] and features["example_marker_count"]:
@@ -369,6 +432,8 @@ def deterministic_scores(
         risk_control -= 0.08
     if features["ai_slop_count"]:
         risk_control -= min(0.25, 0.05 * features["ai_slop_count"])
+    if features["vague_abstraction_count"] > 3 and not features["caveat_count"]:
+        risk_control -= 0.08
     if features["hashtag_count"] > 2:
         risk_control -= 0.12
     if not features["caveat_count"]:
@@ -429,6 +494,10 @@ def grok_eval(
             "Return scores from 0.0 to 1.0.",
             "Penalize unsupported claims, generic AI hype, unclear hooks, weak caveats, and fake evidence.",
             "Penalize rigid template writing, generic openers, and posts that read like a paper abstract broken into numbered tweets.",
+            "Penalize hooks that only work if the reader saw the link card, title, or image.",
+            "Penalize high-level concepts that are not converted into concrete workflow language.",
+            "Penalize over-smooth AI prose: ritual transitions, uniform paragraph endings, repeated balanced turns, and fake certainty.",
+            "Reward source-material richness: inspectable artifacts, sourced numbers, contrast, reader pain, and real caveats.",
             "Reward concrete technical value, bookmark value, high-quality media, and responsible attribution.",
             "Reward a memorable thesis that a technical reader could repeat after reading the thread.",
             "Do not recommend unsafe manipulation or clickbait.",
@@ -555,10 +624,18 @@ def rule_top_fixes(features: dict[str, Any], scores: dict[str, float], text_only
         fixes.append("Replace the repo-note opener with a thesis-first hook before naming metadata.")
     if scores.get("hook_strength", 0) < 0.62 or not features.get("first_thesis_marker_count"):
         fixes.append("Make post 1 a repeatable technical thesis, not a setup sentence.")
+    if not features.get("hook_tension_marker_count"):
+        fixes.append("Make the hook work on its own: topic, reason to read, and evidence credibility before the link card.")
+    if features.get("material_marker_count", 0) < 3:
+        fixes.append("Add source material before polishing: concrete artifact, sourced number, contrast, reader pain, or caveat.")
     if not features.get("example_marker_count"):
         fixes.append("Add one concrete example: file path, command, API, mapping, or before/after.")
     if not features.get("caveat_count"):
         fixes.append("Add a visible caveat or ownership/source boundary.")
+    if features.get("plain_language_gap_count"):
+        fixes.append("Translate high-level concepts into a concrete workflow, mechanism, file, or failure mode.")
+    if features.get("ai_smoothness_count", 0) > 3:
+        fixes.append("Roughen over-polished AI prose: cut ritual transitions and keep one real uncertainty.")
     if features.get("summary_phrase_count", 0) >= max(4, features.get("post_count", 0) + 1):
         fixes.append("Cut README-summary phrasing; explain the mechanism and workflow implication instead.")
     if features.get("voice_drift_count"):

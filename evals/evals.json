@@ -78,6 +78,12 @@
       "prompt": "把最近这些 eval、Trending 实验、live publish 结果都汇总一下，搭建一套 skill 自进化体系：以后能生成改进报告、patch plan，并让 router 读到经过 review 的本地演化规则。",
       "expected_output": "Runs or references x_skill_evolution.py, reads post_eval.json, x_publish_log.json, post_outcome.json, strategy-memory, and trending_experiment_results.json when present, writes signal_ledger.json, skill_evolution_summary.json, skill_evolution_report.md, and skill_patch_plan.md under repo-to-x-workspace/skill-evolution/<run-id>/, uses --apply-profile only for ignored local routing guidance, and clearly states that canonical SKILL.md/scripts are changed only after human review and regression evals.",
       "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "这个 SkillOpt posting pack 安全但太像 README 摘要，hook 也要靠链接卡片才成立。参考 dbskill 的内容诊断方法，把它改到更有素材、更有悬念、更不像 AI 平滑文。",
+      "expected_output": "Runs or references the content-quality gate before rewriting, checks source-material richness, hook independence, psychological trigger fit, plain-language concept conversion, and anti-smoothness, uses concrete artifacts/numbers/caveats from evidence rather than freehand clickbait, reruns x_eval_post.py so material_marker/plain_language/ai_smoothness style signals can force revise, and keeps claim/image/publish gates intact.",
+      "files": []
     }
   ]
 }

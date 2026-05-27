@@ -71,7 +71,7 @@ The router writes or returns a `strategy_decision.json` shape with:
 - thread shape,
 - learned notes from local strategy memory.
 
-Read `references/self-evolving-strategy.md` when the user wants "any input", adaptive strategy, self-evolving behavior, postmortem feedback, or a reusable posting system. Read `references/skill-evolution-system.md` when the user asks the skill itself to learn from evals, publish outcomes, metrics, or Trending experiments.
+Read `references/self-evolving-strategy.md` when the user wants "any input", adaptive strategy, self-evolving behavior, postmortem feedback, or a reusable posting system. Read `references/skill-evolution-system.md` when the user asks the skill itself to learn from evals, publish outcomes, metrics, or Trending experiments. Read `references/content-quality-gates.md` when a draft is safe but generic, too smooth, too abstract, or the user complains that it lacks taste.
 
 Input routing rules:
 
@@ -255,6 +255,15 @@ Before locking the draft, do an angle pass:
 - Generate at least 2-3 materially different angles when the input is rich, unfamiliar, or publication-bound.
 - Cut generic openers such as "recently saw", "worth reading", "interesting repo/paper", unless the rest of the hook is unusually strong.
 - If the result reads like a paper abstract or README split into numbered posts, it is not ready even if the claims are safe.
+
+Run a content-quality gate before treating hook polishing as the problem:
+
+- **Source material**: a strong post needs enough raw material: an inspectable artifact, a sourced number, a before/after or failure mode, a reader pain, a caveat, or a source/ownership boundary. If the source only gives a tagline and stars, collect more evidence instead of writing around the emptiness.
+- **Hook independence**: post 1 must work without a title, image, or prior context. It needs topic, reason to read, and credibility from evidence. Do not assume the reader saw the repo card.
+- **Psychological trigger fit**: use cognitive conflict, curiosity gap, risk/loss, identity, or numeric anchor only when the evidence supports it. Do not turn technical nuance into clickbait.
+- **Plain-language concept audit**: every high-level phrase such as "agentic", "self-evolving", "paradigm", "framework", or "future" must be immediately reducible to a concrete mechanism, file, workflow, or failure mode.
+- **Anti-smoothness**: remove overly even AI prose: repeated "not X, but Y" turns, ritual transitions, perfectly balanced paragraphs, and conclusions that erase the real caveat. A technical post can have one visible uncertainty.
+- **X shape**: sequence the thread as thesis -> mechanism -> example -> caveat -> link/implication. Do not make every post a feature list.
 
 When Grok is configured and the user complains about quality, rigidity, taste, or weak hooks, run a draft tournament before publishing:
 
