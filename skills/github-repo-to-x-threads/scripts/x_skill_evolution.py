@@ -11,6 +11,7 @@ it as a bias.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import Counter, defaultdict
@@ -30,6 +31,10 @@ def safe_slug(value: str) -> str:
 
 def default_run_id() -> str:
     return "skill_evolution_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -59,6 +64,12 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             rows.append({"_error": f"invalid jsonl row in {path}", "raw": stripped[:500]})
     return rows
+
+
+def append_jsonl(path: Path, row: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def rel(path: Path, base: Path) -> str:
@@ -215,6 +226,35 @@ def collect_profile(memory_root: Path) -> dict[str, Any]:
     return profile if isinstance(profile, dict) else {}
 
 
+def stable_bucket(value: str) -> int:
+    digest = hashlib.sha1(value.encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % 100
+
+
+def split_post_evals(
+    post_evals: list[dict[str, Any]],
+    selection_percent: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not post_evals:
+        return [], []
+    selection_percent = max(0, min(90, int(selection_percent)))
+    if selection_percent == 0 or len(post_evals) < 3:
+        return post_evals, []
+    train: list[dict[str, Any]] = []
+    selection: list[dict[str, Any]] = []
+    for row in post_evals:
+        key = str(row.get("path") or row.get("repo_dir") or row.get("source") or "")
+        if stable_bucket(key) < selection_percent:
+            selection.append(row)
+        else:
+            train.append(row)
+    if not train and selection:
+        train.append(selection.pop())
+    if not selection and len(train) > 3:
+        selection.append(train.pop())
+    return train, selection
+
+
 def score_band(score: Any) -> str:
     try:
         value = float(score)
@@ -253,7 +293,13 @@ def add_recommendation(
     )
 
 
-def aggregate(signals: dict[str, Any], runs_root: Path, memory_root: Path) -> dict[str, Any]:
+def aggregate(
+    signals: dict[str, Any],
+    runs_root: Path,
+    memory_root: Path,
+    *,
+    split_name: str = "train",
+) -> dict[str, Any]:
     evals = signals["post_evals"]
     outcomes = signals["outcomes"]
     experiments = signals["experiments"]
@@ -412,6 +458,7 @@ def aggregate(signals: dict[str, Any], runs_root: Path, memory_root: Path) -> di
 
     return {
         "created_at": utc_now(),
+        "split_name": split_name,
         "source_roots": {
             "runs_root": str(runs_root),
             "memory_root": str(memory_root),
@@ -437,7 +484,242 @@ def aggregate(signals: dict[str, Any], runs_root: Path, memory_root: Path) -> di
     }
 
 
-def write_report(path: Path, summary: dict[str, Any], ledger_path: Path, patch_path: Path) -> None:
+def evidence_support(evidence: list[str]) -> int:
+    total = 0
+    for item in evidence:
+        match = re.match(r"(\d+)x\s+", str(item))
+        if match:
+            total += int(match.group(1))
+        else:
+            total += 1
+    return total
+
+
+def apply_selection_gate(
+    summary: dict[str, Any],
+    selection_summary: dict[str, Any],
+    *,
+    min_support: int,
+) -> None:
+    selection_by_key = {
+        rec.get("key"): rec
+        for rec in selection_summary.get("recommendations", [])
+        if rec.get("key")
+    }
+    experiment_backed = {"rewrite_acceptance_gate", "metadata_first_funnel"}
+    for rec in summary.get("recommendations", []):
+        key = rec.get("key")
+        selection_rec = selection_by_key.get(key)
+        if selection_rec:
+            support = evidence_support(selection_rec.get("evidence", []))
+            accepted = support >= min_support
+            rec["selection_gate"] = {
+                "status": "accepted" if accepted else "rejected",
+                "reason": (
+                    f"held-out selection support={support}, threshold={min_support}"
+                    if accepted
+                    else f"held-out selection support={support} below threshold={min_support}"
+                ),
+                "support": support,
+                "evidence": selection_rec.get("evidence", [])[:6],
+            }
+        elif key in experiment_backed and rec.get("evidence"):
+            rec["selection_gate"] = {
+                "status": "accepted",
+                "reason": "experiment-level gate; supported by multi-run experiment artifacts rather than post-eval split",
+                "support": evidence_support(rec.get("evidence", [])),
+                "evidence": rec.get("evidence", [])[:6],
+            }
+        else:
+            rec["selection_gate"] = {
+                "status": "rejected",
+                "reason": "not reproduced in held-out selection split",
+                "support": 0,
+                "evidence": [],
+            }
+
+
+def recommendation_sort_key(rec: dict[str, Any]) -> tuple[int, int]:
+    priority_order = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
+    support = int((rec.get("selection_gate") or {}).get("support") or evidence_support(rec.get("evidence", [])))
+    return (priority_order.get(str(rec.get("priority")), 9), -support)
+
+
+def clip_active_rules(summary: dict[str, Any], learning_rate: int) -> None:
+    budget = max(1, int(learning_rate))
+    accepted = [
+        rec
+        for rec in summary.get("recommendations", [])
+        if (rec.get("selection_gate") or {}).get("status") == "accepted"
+    ]
+    accepted.sort(key=recommendation_sort_key)
+    selected = accepted[:budget]
+    summary["textual_learning_rate"] = {
+        "mode": "constant",
+        "edit_budget": budget,
+        "accepted_recommendations": len(accepted),
+        "selected_recommendations": len(selected),
+        "clipped_recommendations": max(0, len(accepted) - len(selected)),
+    }
+    selected_keys = {rec.get("key") for rec in selected}
+    for rec in summary.get("recommendations", []):
+        gate = rec.setdefault("selection_gate", {"status": "not_evaluated"})
+        if gate.get("status") != "accepted":
+            rec["active_rule_selected"] = False
+        elif rec.get("key") in selected_keys:
+            rec["active_rule_selected"] = True
+        else:
+            rec["active_rule_selected"] = False
+            rec["selection_gate"] = {
+                **gate,
+                "status": "clipped",
+                "reason": f"accepted by held-out gate but clipped by textual learning rate budget={budget}",
+            }
+    summary["active_rules"] = [rec["proposed_change"] for rec in selected]
+
+
+PATCH_TARGETS = {
+    "angle_first_hook_contract": {
+        "target": "Before locking the draft, do an angle pass:",
+        "content": "- Treat post 1 as the selection gate for taste: it must state a repeatable technical thesis or workflow constraint before repo metadata.",
+    },
+    "concrete_example_gate": {
+        "target": "- Find the one thesis a technical reader would remember or repeat.",
+        "content": "- Include one concrete inspectable example: a file, command, API, benchmark, before/after, or workflow step.",
+    },
+    "visible_caveat_gate": {
+        "target": "- If the result reads like a paper abstract or README split into numbered posts, it is not ready even if the claims are safe.",
+        "content": "- Make one caveat or boundary visible in the main thread when evidence is metadata-only, early-stage, benchmark-like, or generated-image-adjacent.",
+    },
+    "coherent_voice_gate": {
+        "target": "- Use one coherent voice. Chinese is default; English is for repo names, file paths, API names, commands, or one deliberate hook line.",
+        "content": "- Keep voice consistent across the thread; do not drift into bilingual filler unless it serves reach or exact technical naming.",
+    },
+    "visual_governance_gate": {
+        "target": "Default rule: a final X posting pack includes actual generated images.",
+        "content": "Default rule: a final X posting pack includes actual generated images, but broad candidate search stays text-only until the candidate survives angle screening.",
+    },
+    "rewrite_acceptance_gate": {
+        "target": "- Accept a tournament rewrite only if its eval score improves over the current accepted draft.",
+        "content": "- Accept a tournament rewrite only if it improves decision rank or clears the configured score improvement threshold over the current accepted draft.",
+    },
+    "metadata_first_funnel": {
+        "target": "Default to a two-stage funnel:",
+        "content": "Default to a two-stage funnel: metadata/readme text screening first, then deep clone, image generation, and publish gates only for selected candidates.",
+    },
+}
+
+
+def build_structured_patch(summary: dict[str, Any]) -> dict[str, Any]:
+    edits: list[dict[str, Any]] = []
+    for rec in summary.get("recommendations", []):
+        target = PATCH_TARGETS.get(str(rec.get("key")), {})
+        gate = rec.get("selection_gate") or {}
+        op = "insert_after"
+        if rec.get("key") == "visual_governance_gate":
+            op = "replace"
+        edit = {
+            "op": op,
+            "target": target.get("target", ""),
+            "content": target.get("content", rec.get("proposed_change", "")),
+            "status": "selected" if rec.get("active_rule_selected") else "not_selected",
+            "priority": rec.get("priority"),
+            "source_key": rec.get("key"),
+            "selection_gate": gate,
+            "support_count": gate.get("support") or evidence_support(rec.get("evidence", [])),
+            "reason": rec.get("reason"),
+        }
+        edits.append(edit)
+    return {
+        "schema_version": 1,
+        "created_at": utc_now(),
+        "status": "proposed_for_human_review",
+        "update_mode": "patch",
+        "textual_learning_rate": summary.get("textual_learning_rate", {}),
+        "edits": edits,
+        "guardrail": "Do not apply automatically; review targets, run held-out evals, then patch canonical files manually.",
+    }
+
+
+def write_history_and_state(
+    out_dir: Path,
+    summary: dict[str, Any],
+    structured_patch: dict[str, Any],
+    *,
+    skill_path: Path,
+    report_path: Path,
+    patch_path: Path,
+    structured_patch_path: Path,
+) -> None:
+    skill_text = skill_path.read_text(encoding="utf-8") if skill_path.exists() else ""
+    selected_edits = [edit for edit in structured_patch.get("edits", []) if edit.get("status") == "selected"]
+    rejected_edits = [
+        edit
+        for edit in structured_patch.get("edits", [])
+        if (edit.get("selection_gate") or {}).get("status") == "rejected"
+    ]
+    history = [
+        {
+            "step": 1,
+            "created_at": utc_now(),
+            "action": "propose_patch_plan",
+            "train_signal_count": summary.get("counts", {}).get("post_evals"),
+            "selection_gate": summary.get("selection_gate", {}),
+            "selected_edits": len(selected_edits),
+            "rejected_edits": len(rejected_edits),
+            "textual_learning_rate": summary.get("textual_learning_rate", {}),
+            "report_path": str(report_path),
+            "patch_plan_path": str(patch_path),
+            "structured_patch_path": str(structured_patch_path),
+        }
+    ]
+    write_json(out_dir / "history.json", history)
+    write_json(
+        out_dir / "runtime_state.json",
+        {
+            "schema_version": 1,
+            "created_at": utc_now(),
+            "last_completed_step": 1,
+            "current_skill_path": str(skill_path),
+            "current_skill_sha256": sha256_text(skill_text) if skill_text else "",
+            "best_skill_path": str(out_dir / "best_skill.md"),
+            "best_skill_is_snapshot": True,
+            "selected_edit_count": len(selected_edits),
+            "rejected_edit_count": len(rejected_edits),
+            "selection_gate": summary.get("selection_gate", {}),
+        },
+    )
+    if skill_text:
+        (out_dir / "best_skill.md").write_text(skill_text, encoding="utf-8")
+
+
+def update_rejected_buffer(memory_root: Path, structured_patch: dict[str, Any]) -> Path:
+    path = memory_root / "rejected_evolution_edits.jsonl"
+    for edit in structured_patch.get("edits", []):
+        gate = edit.get("selection_gate") or {}
+        if gate.get("status") == "rejected":
+            append_jsonl(
+                path,
+                {
+                    "created_at": utc_now(),
+                    "source_key": edit.get("source_key"),
+                    "op": edit.get("op"),
+                    "target": edit.get("target"),
+                    "content": edit.get("content"),
+                    "reason": gate.get("reason"),
+                    "support": gate.get("support"),
+                },
+            )
+    return path
+
+
+def write_report(
+    path: Path,
+    summary: dict[str, Any],
+    ledger_path: Path,
+    patch_path: Path,
+    structured_patch_path: Path,
+) -> None:
     lines = [
         "# Skill Evolution Report",
         "",
@@ -446,6 +728,7 @@ def write_report(path: Path, summary: dict[str, Any], ledger_path: Path, patch_p
         f"- Memory root: `{summary['source_roots']['memory_root']}`",
         f"- Signal ledger: `{ledger_path}`",
         f"- Patch plan: `{patch_path}`",
+        f"- Structured patch: `{structured_patch_path}`",
         "",
         "## Signal Counts",
         "",
@@ -467,8 +750,21 @@ def write_report(path: Path, summary: dict[str, Any], ledger_path: Path, patch_p
     if not summary.get("common_fixes"):
         lines.append("- No post_eval fixes found.")
     lines.extend(["", "## Recommended Evolution Rules", ""])
+    lr = summary.get("textual_learning_rate") or {}
+    if lr:
+        lines.extend(
+            [
+                f"- Textual learning rate edit budget: `{lr.get('edit_budget')}`",
+                f"- Selected recommendations: `{lr.get('selected_recommendations')}`",
+                f"- Clipped recommendations: `{lr.get('clipped_recommendations')}`",
+                "",
+            ]
+        )
     for rec in summary.get("recommendations", []):
+        gate = rec.get("selection_gate") or {}
+        selected = "selected" if rec.get("active_rule_selected") else "not selected"
         lines.append(f"### {rec['priority']} {rec['title']}")
+        lines.append(f"- Gate: `{gate.get('status', 'unknown')}` ({gate.get('reason', 'no reason')}); {selected}")
         lines.append(f"- Change: {rec['proposed_change']}")
         lines.append(f"- Reason: {rec['reason']}")
         lines.append("- Evidence:")
@@ -504,6 +800,8 @@ def write_patch_plan(path: Path, summary: dict[str, Any]) -> None:
                 "",
                 f"- Priority: {rec['priority']}",
                 f"- Target: `{rec['key']}`",
+                f"- Selection gate: `{(rec.get('selection_gate') or {}).get('status', 'unknown')}`",
+                f"- Active after textual LR: `{bool(rec.get('active_rule_selected'))}`",
                 f"- Proposed change: {rec['proposed_change']}",
                 f"- Reason: {rec['reason']}",
                 "- Suggested surfaces:",
@@ -573,9 +871,37 @@ def main() -> int:
     parser.add_argument("--run-id", default=default_run_id())
     parser.add_argument("--max-post-evals", type=int, default=200)
     parser.add_argument(
+        "--skill-path",
+        default=str(Path(__file__).resolve().parents[1] / "SKILL.md"),
+        help="Canonical skill document to snapshot as best_skill.md.",
+    )
+    parser.add_argument(
+        "--selection-percent",
+        type=int,
+        default=25,
+        help="Deterministic held-out percentage of post_eval signals used for selection gate.",
+    )
+    parser.add_argument(
+        "--min-selection-support",
+        type=int,
+        default=1,
+        help="Minimum held-out evidence items required to accept a proposed rule.",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=int,
+        default=4,
+        help="Textual learning rate: max accepted evolution rules selected as active guidance.",
+    )
+    parser.add_argument(
         "--apply-profile",
         action="store_true",
         help="Write proposed guidance into ignored strategy_profile.json for future routing bias.",
+    )
+    parser.add_argument(
+        "--update-rejected-buffer",
+        action="store_true",
+        help="Append held-out rejected edit proposals into ignored rejected_evolution_edits.jsonl.",
     )
     args = parser.parse_args()
 
@@ -584,25 +910,64 @@ def main() -> int:
     out_dir = Path(args.out_root).expanduser().resolve() / safe_slug(args.run_id)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    post_evals = collect_post_eval_signals(runs_root, args.max_post_evals) if runs_root.exists() else []
+    train_evals, selection_evals = split_post_evals(post_evals, args.selection_percent)
+    rejected_buffer_path = memory_root / "rejected_evolution_edits.jsonl"
     signals = {
         "schema_version": 1,
         "created_at": utc_now(),
         "runs_root": str(runs_root),
         "memory_root": str(memory_root),
-        "post_evals": collect_post_eval_signals(runs_root, args.max_post_evals) if runs_root.exists() else [],
+        "post_evals": post_evals,
+        "train_post_evals": train_evals,
+        "selection_post_evals": selection_evals,
         "outcomes": collect_outcome_signals(memory_root, runs_root) if runs_root.exists() or memory_root.exists() else [],
         "experiments": collect_experiment_signals(runs_root) if runs_root.exists() else [],
         "strategy_profile": collect_profile(memory_root),
+        "rejected_evolution_edits": read_jsonl(rejected_buffer_path),
+        "split_policy": {
+            "selection_percent": args.selection_percent,
+            "train_count": len(train_evals),
+            "selection_count": len(selection_evals),
+            "min_selection_support": args.min_selection_support,
+        },
     }
-    summary = aggregate(signals, runs_root, memory_root)
+    train_signals = {**signals, "post_evals": train_evals}
+    selection_signals = {**signals, "post_evals": selection_evals, "experiments": []}
+    summary = aggregate(train_signals, runs_root, memory_root, split_name="train")
+    selection_summary = aggregate(selection_signals, runs_root, memory_root, split_name="selection")
+    summary["selection_split"] = signals["split_policy"]
+    summary["selection_summary"] = {
+        "counts": selection_summary.get("counts", {}),
+        "weak_dimensions": selection_summary.get("weak_dimensions", {}),
+        "recommendation_keys": [rec.get("key") for rec in selection_summary.get("recommendations", [])],
+    }
+    apply_selection_gate(summary, selection_summary, min_support=args.min_selection_support)
+    clip_active_rules(summary, args.learning_rate)
     ledger_path = out_dir / "signal_ledger.json"
     summary_path = out_dir / "skill_evolution_summary.json"
     report_path = out_dir / "skill_evolution_report.md"
     patch_path = out_dir / "skill_patch_plan.md"
+    structured_patch_path = out_dir / "skill_patch_plan.json"
+    structured_patch = build_structured_patch(summary)
     write_json(ledger_path, signals)
     write_json(summary_path, summary)
+    write_json(structured_patch_path, structured_patch)
     write_patch_plan(patch_path, summary)
-    write_report(report_path, summary, ledger_path, patch_path)
+    write_report(report_path, summary, ledger_path, patch_path, structured_patch_path)
+    skill_path = Path(args.skill_path).expanduser().resolve()
+    write_history_and_state(
+        out_dir,
+        summary,
+        structured_patch,
+        skill_path=skill_path,
+        report_path=report_path,
+        patch_path=patch_path,
+        structured_patch_path=structured_patch_path,
+    )
+    rejected_buffer_written = None
+    if args.update_rejected_buffer:
+        rejected_buffer_written = update_rejected_buffer(memory_root, structured_patch)
     profile_path = None
     if args.apply_profile:
         profile_path = apply_profile_guidance(memory_root, summary, report_path, patch_path)
@@ -611,8 +976,13 @@ def main() -> int:
     print(f"Wrote summary: {summary_path}")
     print(f"Wrote report: {report_path}")
     print(f"Wrote patch plan: {patch_path}")
+    print(f"Wrote structured patch: {structured_patch_path}")
+    print(f"Wrote runtime state: {out_dir / 'runtime_state.json'}")
+    print(f"Wrote best skill snapshot: {out_dir / 'best_skill.md'}")
     if profile_path:
         print(f"Updated local strategy profile: {profile_path}")
+    if rejected_buffer_written:
+        print(f"Updated rejected edit buffer: {rejected_buffer_written}")
     print(f"Recommendations: {len(summary.get('recommendations', []))}")
     return 0
 
