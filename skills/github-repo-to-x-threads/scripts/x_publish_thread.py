@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
+import hmac
 import json
 import mimetypes
 import re
@@ -25,6 +27,8 @@ from typing import Any
 
 API_BASE = "https://api.x.com"
 TOKEN_URL = f"{API_BASE}/2/oauth2/token"
+OAUTH1_MEDIA_UPLOAD_URL = "https://upload.twitter.com/1.1/media/upload.json"
+OAUTH1_MEDIA_METADATA_URL = "https://upload.twitter.com/1.1/media/metadata/create.json"
 
 
 def utc_now() -> str:
@@ -232,6 +236,113 @@ def api_multipart(url: str, token: str, fields: dict[str, str], file_path: Path)
         raise RuntimeError(f"HTTP {exc.code} from {url}: {detail}") from exc
 
 
+def api_media_upload_json(url: str, token: str, fields: dict[str, str], file_path: Path) -> dict[str, Any]:
+    payload = {
+        **fields,
+        "media": base64.b64encode(file_path.read_bytes()).decode("ascii"),
+    }
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {exc.code} from {url}: {detail}") from exc
+
+
+def oauth1_credentials(env: dict[str, str]) -> dict[str, str]:
+    creds = {
+        "consumer_key": env.get("X_CONSUMER_KEY") or env.get("TWITTER_CONSUMER_KEY") or "",
+        "consumer_secret": env.get("X_CONSUMER_SECRET") or env.get("TWITTER_CONSUMER_SECRET") or "",
+        "access_token": env.get("X_ACCESS_TOKEN") or env.get("TWITTER_ACCESS_TOKEN") or "",
+        "access_token_secret": env.get("X_ACCESS_TOKEN_SECRET") or env.get("TWITTER_ACCESS_TOKEN_SECRET") or "",
+    }
+    return creds if all(creds.values()) else {}
+
+
+def pct(value: str) -> str:
+    return urllib.parse.quote(str(value), safe="~")
+
+
+def oauth1_authorization(
+    method: str,
+    url: str,
+    env: dict[str, str],
+    params: dict[str, str] | None = None,
+) -> str:
+    creds = oauth1_credentials(env)
+    if not creds:
+        raise RuntimeError("missing OAuth1 user credentials for media upload fallback")
+    oauth_params = {
+        "oauth_consumer_key": creds["consumer_key"],
+        "oauth_nonce": uuid.uuid4().hex,
+        "oauth_signature_method": "HMAC-SHA1",
+        "oauth_timestamp": str(int(time.time())),
+        "oauth_token": creds["access_token"],
+        "oauth_version": "1.0",
+    }
+    signature_params = {**oauth_params, **(params or {})}
+    normalized = "&".join(f"{pct(key)}={pct(value)}" for key, value in sorted(signature_params.items()))
+    base = "&".join([method.upper(), pct(url), pct(normalized)])
+    signing_key = f"{pct(creds['consumer_secret'])}&{pct(creds['access_token_secret'])}"
+    signature = base64.b64encode(hmac.new(signing_key.encode(), base.encode(), hashlib.sha1).digest()).decode("ascii")
+    oauth_params["oauth_signature"] = signature
+    return "OAuth " + ", ".join(f'{pct(key)}="{pct(value)}"' for key, value in sorted(oauth_params.items()))
+
+
+def api_multipart_oauth1(url: str, env: dict[str, str], fields: dict[str, str], file_path: Path) -> dict[str, Any]:
+    mime_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+    body, content_type = make_multipart(
+        fields,
+        {"media": (file_path.name, file_path.read_bytes(), mime_type)},
+    )
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "Authorization": oauth1_authorization("POST", url, env, fields),
+            "Content-Type": content_type,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {exc.code} from {url}: {detail}") from exc
+
+
+def api_json_oauth1(method: str, url: str, env: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "Authorization": oauth1_authorization(method, url, env),
+            "Content-Type": "application/json",
+        },
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {exc.code} from {url}: {detail}") from exc
+
+
 def refresh_access_token(env: dict[str, str], env_path: Path | None) -> str:
     refresh_token = env.get("X_OAUTH2_REFRESH_TOKEN") or env.get("X_REFRESH_TOKEN", "")
     client_id = env.get("X_CLIENT_ID", "")
@@ -285,15 +396,33 @@ def resolve_image_file(repo_run_dir: Path, image: dict[str, Any]) -> Path:
     return path
 
 
-def upload_image(token: str, repo_run_dir: Path, image: dict[str, Any]) -> str:
+def upload_image(token: str, env: dict[str, str], repo_run_dir: Path, image: dict[str, Any]) -> str:
     path = resolve_image_file(repo_run_dir, image)
     mime_type = str(image.get("mime_type") or mimetypes.guess_type(path.name)[0] or "image/png")
-    response = api_multipart(
-        f"{API_BASE}/2/media/upload",
-        token,
-        {"media_category": "tweet_image", "media_type": mime_type},
-        path,
-    )
+    used_oauth1 = False
+    fields = {"media_category": "tweet_image", "media_type": mime_type}
+    try:
+        response = api_multipart(
+            f"{API_BASE}/2/media/upload",
+            token,
+            fields,
+            path,
+        )
+    except RuntimeError as exc:
+        if "HTTP 401" not in str(exc):
+            raise
+        try:
+            response = api_media_upload_json(f"{API_BASE}/2/media/upload", token, fields, path)
+        except RuntimeError:
+            if not oauth1_credentials(env):
+                raise
+            response = api_multipart_oauth1(
+                OAUTH1_MEDIA_UPLOAD_URL,
+                env,
+                {"media_category": "tweet_image"},
+                path,
+            )
+            used_oauth1 = True
     media_id = str(response.get("data", {}).get("id") or response.get("media_id") or "")
     if not media_id:
         raise RuntimeError(f"media upload did not return id for {path}: {response}")
@@ -307,7 +436,18 @@ def upload_image(token: str, repo_run_dir: Path, image: dict[str, Any]) -> str:
                 {"id": media_id, "metadata": {"alt_text": {"text": alt_text}}},
             )
         except RuntimeError as exc:
-            print(f"Warning: alt text metadata failed for {image.get('id')}: {exc}", file=sys.stderr)
+            if used_oauth1:
+                try:
+                    api_json_oauth1(
+                        "POST",
+                        OAUTH1_MEDIA_METADATA_URL,
+                        env,
+                        {"media_id": media_id, "alt_text": {"text": alt_text}},
+                    )
+                except RuntimeError as oauth1_exc:
+                    print(f"Warning: alt text metadata failed for {image.get('id')}: {oauth1_exc}", file=sys.stderr)
+            else:
+                print(f"Warning: alt text metadata failed for {image.get('id')}: {exc}", file=sys.stderr)
     return media_id
 
 
@@ -397,7 +537,7 @@ def publish(args: argparse.Namespace) -> int:
                     continue
                 resolve_image_file(repo_run_dir, image)
         if args.live:
-            media_ids = [upload_image(token, repo_run_dir, image) for image in post_images]
+            media_ids = [upload_image(token, env, repo_run_dir, image) for image in post_images]
             try:
                 tweet_id = post_tweet(token, text, media_ids, reply_to, bool(entry["made_with_ai"]))
             except RuntimeError as exc:
