@@ -81,7 +81,7 @@
     },
     {
       "id": 14,
-      "prompt": "这个 SkillOpt posting pack 安全但太像 README 摘要，hook 也要靠链接卡片才成立。参考 dbskill 的内容诊断方法，把它改到更有素材、更有悬念、更不像 AI 平滑文。",
+      "prompt": "这个 SkillOpt posting pack 安全但太像 README 摘要，hook 也要靠链接卡片才成立。参考内容诊断方法，把它改到更有素材、更有悬念、更不像 AI 平滑文。",
       "expected_output": "Runs or references the content-quality gate before rewriting, checks source-material richness, hook independence, psychological trigger fit, plain-language concept conversion, and anti-smoothness, uses concrete artifacts/numbers/caveats from evidence rather than freehand clickbait, reruns x_eval_post.py so material_marker/plain_language/ai_smoothness style signals can force revise, and keeps claim/image/publish gates intact.",
       "files": []
     }

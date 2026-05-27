@@ -1,8 +1,8 @@
 # Content Quality Gates
 
 Use this when a post is safe but still feels generic, smooth, or low-value.
-These gates are adapted for technical X posts from `dontbesilent2025/dbskill`
-content-diagnosis patterns, but the rules here are repo-to-X specific.
+These gates adapt content-diagnosis patterns for technical X posts, but the
+rules here are repo-to-X specific.
 
 ## 1. Source Material Gate
 
