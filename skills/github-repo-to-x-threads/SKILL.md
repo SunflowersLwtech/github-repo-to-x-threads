@@ -1,6 +1,6 @@
 ---
 name: github-repo-to-x-threads
-description: Use this skill whenever the user gives any technical input and wants an X/Twitter post, thread, article, launch/share post, responsible recommendation, project/paper writeup, or social media copy. Inputs can be GitHub repositories, owner/repo strings, local paths, arXiv/alphaXiv papers, blog/docs URLs, PDFs/notes, source lists, existing posting packs, or raw ideas. This skill routes the input to a posting strategy, collects evidence, separates verified facts from inference and user vision, drafts responsible X copy, generates GPT Image 2 visual assets by default, optionally publishes through the official X API, and records outcomes into local strategy memory so future posts improve.
+description: Use this skill whenever the user gives any technical input and wants an X/Twitter post, thread, article, launch/share post, responsible recommendation, project/paper writeup, social media copy, or asks the posting skill to improve/evolve from evals, feedback, live metrics, or GitHub Trending experiments. Inputs can be GitHub repositories, owner/repo strings, local paths, arXiv/alphaXiv papers, blog/docs URLs, PDFs/notes, source lists, existing posting packs, raw ideas, or prior run workspaces. This skill routes the input to a posting strategy, collects evidence, separates verified facts from inference and user vision, drafts responsible X copy, generates GPT Image 2 visual assets by default, optionally publishes through the official X API, records outcomes into local strategy memory, and can synthesize an auditable skill-evolution report plus patch plan so future posts improve without silently weakening claim safety.
 ---
 
 # GitHub Repo to X Threads
@@ -22,6 +22,8 @@ Use this skill when the user asks things like:
 - "这个链接/PDF/笔记帮我决定怎么发 X"
 - "根据任何输入自动决定发帖策略"
 - "记录这次发帖效果，下次变强"
+- "搭建一套 skill 自进化体系"
+- "把这批 eval / live 结果总结成 skill 改进计划"
 
 ## Inputs To Resolve
 
@@ -69,7 +71,7 @@ The router writes or returns a `strategy_decision.json` shape with:
 - thread shape,
 - learned notes from local strategy memory.
 
-Read `references/self-evolving-strategy.md` when the user wants "any input", adaptive strategy, self-evolving behavior, postmortem feedback, or a reusable posting system.
+Read `references/self-evolving-strategy.md` when the user wants "any input", adaptive strategy, self-evolving behavior, postmortem feedback, or a reusable posting system. Read `references/skill-evolution-system.md` when the user asks the skill itself to learn from evals, publish outcomes, metrics, or Trending experiments.
 
 Input routing rules:
 
@@ -555,6 +557,39 @@ repo-to-x-workspace/strategy-memory/strategy_profile.json
 ```
 
 Use local strategy memory as a bias for future strategy selection. Do not treat engagement as proof that a claim was true, and do not silently insert performance-driven rules into the canonical skill without explicit review.
+
+When the user asks for a broader "skills 自进化体系", or after a batch of evals,
+Trending experiments, or live posts, synthesize the evidence before editing the
+canonical skill:
+
+```bash
+python -B <skill-dir>/scripts/x_skill_evolution.py \
+  --runs-root repo-to-x-workspace/runs \
+  --memory-root repo-to-x-workspace/strategy-memory
+```
+
+This writes an ignored workspace under:
+
+```text
+repo-to-x-workspace/skill-evolution/<run-id>/
+  signal_ledger.json
+  skill_evolution_summary.json
+  skill_evolution_report.md
+  skill_patch_plan.md
+```
+
+Use `--apply-profile` only when you want future router runs to read the proposed
+rules as local strategy-memory guidance:
+
+```bash
+python -B <skill-dir>/scripts/x_skill_evolution.py --apply-profile
+```
+
+That flag updates `strategy_profile.json` with `evolution_guidance`; it does not
+edit `SKILL.md`, prompts, eval gates, or public copy. Convert a patch plan into
+canonical skill changes only after reviewing the signal ledger and adding or
+updating a regression eval. See `references/skill-evolution-system.md` for the
+full contract.
 
 ### 12. X Eval Agent
 

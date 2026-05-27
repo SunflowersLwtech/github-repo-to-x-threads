@@ -73,6 +73,19 @@ python -B "$CLAUDE_PLUGIN_ROOT/skills/github-repo-to-x-threads/scripts/x_collect
 python -B "$CLAUDE_PLUGIN_ROOT/skills/github-repo-to-x-threads/scripts/x_calibrate_strategy.py" <repo-run-dir>
 ```
 
+If the user asks to evolve the skill from a batch of evals, publish logs,
+metrics, or Trending experiments, synthesize the evidence first:
+
+```bash
+python -B "$CLAUDE_PLUGIN_ROOT/skills/github-repo-to-x-threads/scripts/x_skill_evolution.py" \
+  --runs-root repo-to-x-workspace/runs \
+  --memory-root repo-to-x-workspace/strategy-memory
+```
+
+Use `--apply-profile` only to write proposed local routing guidance into ignored
+strategy memory. Do not silently edit the canonical skill from the generated
+patch plan.
+
 Do not present a pack as ready until `cross_check_review.md` is `pass`. Keep generated outputs in the local ignored workspace and do not commit `.env`, cloned repos, generated images, or repo-specific run artifacts.
 
 Before presenting "Ready To Post", run:
